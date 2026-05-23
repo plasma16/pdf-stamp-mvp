@@ -33,3 +33,9 @@
 - Updated `.github/workflows/build-apk.yml` to add a CI patch step that rewrites `compileSdk`/`targetSdk` to `36` across Gradle files in workspace and `$HOME/.pub-cache` after `flutter pub get`.
 - This addresses plugin-level Android API mismatches where `file_picker` still compiled against android-34 in GitHub Actions.
 - Validation: Log-driven fix; pending verification in next GitHub Actions run.
+
+## 2026-05-23 12:55 SGT
+- Updated `lib/main.dart` to add a new `Combine 2 PDFs` action using Syncfusion PDF append flow.
+- Added two-file picker validation (requires exactly 2 PDFs), merge/export logic, and UI loading state during combine.
+- Output is saved beside the first selected PDF as `<file1>_<file2>_combined.pdf`.
+- Validation: Static review only in this environment; Flutter runtime/build not executed locally because Flutter SDK is unavailable.

@@ -54,6 +54,7 @@ class _StampHomePageState extends State<StampHomePage> {
   final TextEditingController _endPageCtl = TextEditingController(text: '1');
 
   bool _isExporting = false;
+  bool _isCombining = false;
 
   @override
   void dispose() {
@@ -148,6 +149,63 @@ class _StampHomePageState extends State<StampHomePage> {
 
     final encoded = img.encodePng(out);
     return Uint8List.fromList(encoded);
+  }
+
+  Future<void> _combineTwoPdfs() async {
+    setState(() => _isCombining = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        allowMultiple: true,
+      );
+
+      if (result == null || result.files.length != 2) {
+        _showSnack('Please select exactly 2 PDF files.');
+        return;
+      }
+
+      final path1 = result.files[0].path;
+      final path2 = result.files[1].path;
+      if (path1 == null || path2 == null) {
+        _showSnack('Could not read selected PDF paths.');
+        return;
+      }
+
+      final file1 = File(path1);
+      final file2 = File(path2);
+
+      final outDoc = sfpdf.PdfDocument();
+      try {
+        final doc1 = sfpdf.PdfDocument(inputBytes: await file1.readAsBytes());
+        final doc2 = sfpdf.PdfDocument(inputBytes: await file2.readAsBytes());
+        try {
+          outDoc.appendDocument(doc1);
+          outDoc.appendDocument(doc2);
+        } finally {
+          doc1.dispose();
+          doc2.dispose();
+        }
+
+        final outBytes = Uint8List.fromList(await outDoc.save());
+        final dir = file1.parent;
+        final base1 = p.basenameWithoutExtension(file1.path);
+        final base2 = p.basenameWithoutExtension(file2.path);
+        final outPath = p.join(dir.path, '${base1}_${base2}_combined.pdf');
+        final outFile = File(outPath);
+        await outFile.writeAsBytes(outBytes, flush: true);
+
+        _showSnack('Combined PDF saved: ${outFile.path}');
+      } finally {
+        outDoc.dispose();
+      }
+    } catch (e) {
+      _showSnack('Failed to combine PDFs: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isCombining = false);
+      }
+    }
   }
 
   Future<void> _exportStampedPdf() async {
@@ -256,6 +314,10 @@ class _StampHomePageState extends State<StampHomePage> {
                   FilledButton.tonal(
                     onPressed: _pickStampPng,
                     child: const Text('Pick Stamp PNG'),
+                  ),
+                  FilledButton.tonal(
+                    onPressed: _isCombining ? null : _combineTwoPdfs,
+                    child: Text(_isCombining ? 'Combining...' : 'Combine 2 PDFs'),
                   ),
                   FilledButton(
                     onPressed: _isExporting ? null : _exportStampedPdf,
