@@ -57,12 +57,12 @@ jobs:
           # Ensure plugin safeExtGet('compileSdkVersion', 34) resolves to 36
           # by setting rootProject.ext values used by many Android plugins.
           if [ -f android/build.gradle ]; then
-            if ! rg -q "compileSdkVersion\\s*=\\s*36" android/build.gradle; then
+            if ! grep -Eq "compileSdkVersion[[:space:]]*=[[:space:]]*36" android/build.gradle; then
               sed -i "/buildscript[[:space:]]*{/i ext {\\n    compileSdkVersion = 36\\n    targetSdkVersion = 36\\n}\\n" android/build.gradle
             fi
           fi
           if [ -f android/build.gradle.kts ]; then
-            if ! rg -q "set\\(\"compileSdkVersion\",\\s*36\\)" android/build.gradle.kts; then
+            if ! grep -Eq "compileSdkVersion[[:space:]]*\"\\][[:space:]]*=[[:space:]]*36|set\\(\"compileSdkVersion\",[[:space:]]*36\\)" android/build.gradle.kts; then
               sed -i "1i extra[\"compileSdkVersion\"] = 36\\nextra[\"targetSdkVersion\"] = 36\\n" android/build.gradle.kts
             fi
           fi
@@ -82,6 +82,8 @@ jobs:
             sed -i 's/targetSdkVersion[[:space:]]*flutter\.targetSdkVersion/targetSdkVersion 36/g' "$f" || true
             sed -i 's/compileSdkVersion[[:space:]]*34/compileSdkVersion 36/g' "$f" || true
             sed -i 's/targetSdkVersion[[:space:]]*34/targetSdkVersion 36/g' "$f" || true
+            sed -i 's/compileSdk[[:space:]]\+34/compileSdk 36/g' "$f" || true
+            sed -i 's/targetSdk[[:space:]]\+34/targetSdk 36/g' "$f" || true
             sed -i 's/compileSdk[[:space:]]*=[[:space:]]*34/compileSdk = 36/g' "$f" || true
             sed -i 's/targetSdk[[:space:]]*=[[:space:]]*34/targetSdk = 36/g' "$f" || true
             sed -i "s/safeExtGet([^,]*,[[:space:]]*34)/safeExtGet('compileSdkVersion', 36)/g" "$f" || true

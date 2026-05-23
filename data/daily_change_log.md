@@ -56,3 +56,9 @@
 - Updated `.github/workflows/build-apk.yml` to set root Android Gradle `ext.compileSdkVersion=36` and `ext.targetSdkVersion=36` (and Kotlin DSL equivalent `extra[...]`) after CI bootstrap.
 - This directly fixes plugin `safeExtGet('compileSdkVersion', 34)` fallback behavior used by `file_picker`, so plugin modules resolve API 36 instead of 34.
 - Validation: Log-driven workflow fix; pending verification in next GitHub Actions run.
+
+## 2026-05-23 14:28 SGT
+- Updated `.github/workflows/build-apk.yml` to remove CI dependency on `rg` (replaced with portable `grep -E` checks), since runner image lacked `rg`.
+- Added additional Gradle rewrite rules for `compileSdk 34` / `targetSdk 34` syntax (space-separated form) used by `file_picker` plugin scripts.
+- This directly targets the latest failure where post-patch verification still showed `file_picker` as `compileSdk 34`.
+- Validation: Log-driven workflow fix; pending verification in next GitHub Actions run.
