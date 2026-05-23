@@ -18,3 +18,8 @@
 - Updated `lib/main.dart` to alias Syncfusion PDF imports (`sfpdf`) and explicitly reference `sfpdf.PdfDocument`/`sfpdf.PdfBitmap`.
 - This resolves the GitHub Actions compile error where `PdfDocument` was imported from both `pdfx` and `syncfusion_flutter_pdf`.
 - Validation: Static review only in this environment; Flutter build execution pending in GitHub Actions.
+
+## 2026-05-23 12:06 SGT
+- Updated `.github/workflows/build-apk.yml` to set Android `compileSdk` and `targetSdk` to `36` after CI bootstrap.
+- This addresses the Actions failure from `:file_picker:checkReleaseAarMetadata` requiring Android API 36.
+- Validation: Log-driven fix; pending verification in next GitHub Actions run.

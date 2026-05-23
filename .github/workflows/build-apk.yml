@@ -32,6 +32,17 @@ jobs:
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name pdf_stamp_mvp .
           fi
+      
+      - name: Align Android SDK levels for plugin compatibility
+        run: |
+          if [ -f android/app/build.gradle.kts ]; then
+            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
+            sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle.kts
+          fi
+          if [ -f android/app/build.gradle ]; then
+            sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle
+            sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 36/g' android/app/build.gradle
+          fi
 
       - name: Install dependencies
         run: flutter pub get
