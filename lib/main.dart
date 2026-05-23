@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:pdfx/pdfx.dart';
-import 'package:syncfusion_flutter_pdf/pdf.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart' as sfpdf;
 
 void main() {
   runApp(const PdfStampMvpApp());
@@ -159,7 +159,7 @@ class _StampHomePageState extends State<StampHomePage> {
     setState(() => _isExporting = true);
     try {
       final pdfBytes = await _pdfFile!.readAsBytes();
-      final document = PdfDocument(inputBytes: pdfBytes);
+      final document = sfpdf.PdfDocument(inputBytes: pdfBytes);
 
       final pageIndexes = _buildPageIndexes(document.pages.count);
       if (pageIndexes.isEmpty) {
@@ -189,7 +189,7 @@ class _StampHomePageState extends State<StampHomePage> {
         page.graphics.translateTransform(-(w / 2), -(h / 2));
 
         page.graphics.drawImage(
-          PdfBitmap(_cleanedStampPng!),
+          sfpdf.PdfBitmap(_cleanedStampPng!),
           Rect.fromLTWH(0, 0, w, h),
         );
 

@@ -13,3 +13,8 @@
 - Updated `.github/workflows/build-apk.yml` to bootstrap the missing Android host project in CI using `flutter create --platforms=android` when `android/` is absent.
 - This fixes the GitHub Actions error: unsupported Gradle project during `flutter build apk --release`.
 - Validation: Change reviewed locally; workflow execution pending on next GitHub push.
+
+## 2026-05-23 12:00 SGT
+- Updated `lib/main.dart` to alias Syncfusion PDF imports (`sfpdf`) and explicitly reference `sfpdf.PdfDocument`/`sfpdf.PdfBitmap`.
+- This resolves the GitHub Actions compile error where `PdfDocument` was imported from both `pdfx` and `syncfusion_flutter_pdf`.
+- Validation: Static review only in this environment; Flutter build execution pending in GitHub Actions.
