@@ -71,8 +71,14 @@ jobs:
             sed -i 's/targetSdkVersion[[:space:]]*34/targetSdkVersion 36/g' "$f" || true
             sed -i 's/compileSdk[[:space:]]*=[[:space:]]*34/compileSdk = 36/g' "$f" || true
             sed -i 's/targetSdk[[:space:]]*=[[:space:]]*34/targetSdk = 36/g' "$f" || true
+            sed -i "s/safeExtGet([^,]*,[[:space:]]*34)/safeExtGet('compileSdkVersion', 36)/g" "$f" || true
+            sed -i "s/safeExtGet([^,]*,[[:space:]]*35)/safeExtGet('compileSdkVersion', 36)/g" "$f" || true
+            sed -i "s/safeExtGet('targetSdkVersion',[[:space:]]*34)/safeExtGet('targetSdkVersion', 36)/g" "$f" || true
+            sed -i "s/safeExtGet('targetSdkVersion',[[:space:]]*35)/safeExtGet('targetSdkVersion', 36)/g" "$f" || true
           done
           echo "Patched ${#gradle_files[@]} Gradle files"
+          echo "Verifying file_picker Android SDK lines after patch:"
+          find "$HOME/.pub-cache" -type f -path "*file_picker*/android/build.gradle*" -print -exec sh -c "echo '---'; grep -nE 'compileSdk|targetSdk|safeExtGet' \"\$1\" || true" _ {} \;
 
       - name: Build release APK
         run: flutter build apk --release

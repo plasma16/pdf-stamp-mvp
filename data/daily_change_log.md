@@ -45,3 +45,9 @@
 - Replaced merge logic with explicit page copy using `createTemplate()` + `drawPdfTemplate(...)` into destination pages sized to source pages.
 - This fixes GitHub Actions compile failure: `The method 'appendDocument' isn't defined for the type 'PdfDocument'`.
 - Validation: Log-driven code fix; local Flutter build not run because Flutter SDK is unavailable in this environment.
+
+## 2026-05-23 14:07 SGT
+- Updated `.github/workflows/build-apk.yml` to harden CI Android SDK patching for plugin Gradle scripts.
+- Added rewrite rules for `safeExtGet(..., 34/35)` patterns and a verification print for `file_picker` Gradle SDK lines from `$HOME/.pub-cache` before build.
+- This targets repeated `:file_picker:checkReleaseAarMetadata` failures where the plugin still resolved to android-34.
+- Validation: Log-driven workflow fix; pending verification in next GitHub Actions run.
