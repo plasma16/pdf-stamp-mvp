@@ -90,10 +90,10 @@ class _StampHomePageState extends State<StampHomePage> {
     });
   }
 
-  Future<void> _pickStampPng() async {
+  Future<void> _pickStampImage() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['png'],
+      allowedExtensions: ['png', 'jpg', 'jpeg'],
       withData: true,
     );
     if (result == null) return;
@@ -103,7 +103,7 @@ class _StampHomePageState extends State<StampHomePage> {
 
     final cleaned = _makeWhiteTransparent(bytes);
     if (cleaned == null) {
-      _showSnack('Could not process stamp PNG.');
+      _showSnack('Could not process stamp image.');
       return;
     }
 
@@ -113,8 +113,8 @@ class _StampHomePageState extends State<StampHomePage> {
     });
   }
 
-  Uint8List? _makeWhiteTransparent(Uint8List inputPng) {
-    final source = img.decodeImage(inputPng);
+  Uint8List? _makeWhiteTransparent(Uint8List inputImage) {
+    final source = img.decodeImage(inputImage);
     if (source == null) return null;
 
     final out = img.Image.from(source);
@@ -328,8 +328,8 @@ class _StampHomePageState extends State<StampHomePage> {
                     child: const Text('Pick PDF'),
                   ),
                   FilledButton.tonal(
-                    onPressed: _pickStampPng,
-                    child: const Text('Pick Stamp PNG'),
+                    onPressed: _pickStampImage,
+                    child: const Text('Pick Stamp Image'),
                   ),
                   FilledButton.tonal(
                     onPressed: _isCombining ? null : _combineTwoPdfs,

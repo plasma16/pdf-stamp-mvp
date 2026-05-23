@@ -62,3 +62,9 @@
 - Added additional Gradle rewrite rules for `compileSdk 34` / `targetSdk 34` syntax (space-separated form) used by `file_picker` plugin scripts.
 - This directly targets the latest failure where post-patch verification still showed `file_picker` as `compileSdk 34`.
 - Validation: Log-driven workflow fix; pending verification in next GitHub Actions run.
+
+## 2026-05-23 15:43 SGT
+- Updated `lib/main.dart` stamp import flow to accept JPG/JPEG in addition to PNG (`allowedExtensions: ['png', 'jpg', 'jpeg']`).
+- Renamed picker action to `Pick Stamp Image` and generalized error text from PNG-specific wording.
+- Existing white-background cleanup pipeline remains in place and now runs for both PNG and JPG/JPEG inputs before stamping.
+- Validation: Static code review only; local Flutter build/test not run because Flutter SDK is unavailable in this environment.
