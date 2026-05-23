@@ -23,3 +23,8 @@
 - Updated `.github/workflows/build-apk.yml` to set Android `compileSdk` and `targetSdk` to `36` after CI bootstrap.
 - This addresses the Actions failure from `:file_picker:checkReleaseAarMetadata` requiring Android API 36.
 - Validation: Log-driven fix; pending verification in next GitHub Actions run.
+
+## 2026-05-23 12:14 SGT
+- Updated `.github/workflows/build-apk.yml` to enforce `flutter.compileSdkVersion=36` and `flutter.targetSdkVersion=36` in `android/gradle.properties` during CI.
+- This makes plugin modules (including `file_picker`) compile against API 36, not just the app module.
+- Validation: Log-driven fix; pending verification in next GitHub Actions run.

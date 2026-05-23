@@ -35,6 +35,16 @@ jobs:
       
       - name: Align Android SDK levels for plugin compatibility
         run: |
+          # Ensure Flutter-wide SDK overrides so app + plugin modules use API 36.
+          mkdir -p android
+          touch android/gradle.properties
+          grep -q '^flutter.compileSdkVersion=' android/gradle.properties && \
+            sed -i 's/^flutter.compileSdkVersion=.*/flutter.compileSdkVersion=36/' android/gradle.properties || \
+            echo 'flutter.compileSdkVersion=36' >> android/gradle.properties
+          grep -q '^flutter.targetSdkVersion=' android/gradle.properties && \
+            sed -i 's/^flutter.targetSdkVersion=.*/flutter.targetSdkVersion=36/' android/gradle.properties || \
+            echo 'flutter.targetSdkVersion=36' >> android/gradle.properties
+
           if [ -f android/app/build.gradle.kts ]; then
             sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
             sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle.kts
