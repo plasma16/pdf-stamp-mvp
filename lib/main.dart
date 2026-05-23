@@ -180,8 +180,24 @@ class _StampHomePageState extends State<StampHomePage> {
         final doc1 = sfpdf.PdfDocument(inputBytes: await file1.readAsBytes());
         final doc2 = sfpdf.PdfDocument(inputBytes: await file2.readAsBytes());
         try {
-          outDoc.appendDocument(doc1);
-          outDoc.appendDocument(doc2);
+          void copyPages(sfpdf.PdfDocument source) {
+            for (int i = 0; i < source.pages.count; i++) {
+              final srcPage = source.pages[i];
+              final pageSize = srcPage.size;
+              final dstPage = outDoc.pages.insert(
+                outDoc.pages.count,
+                Size(pageSize.width, pageSize.height),
+              );
+              dstPage.graphics.drawPdfTemplate(
+                srcPage.createTemplate(),
+                Offset.zero,
+                Size(pageSize.width, pageSize.height),
+              );
+            }
+          }
+
+          copyPages(doc1);
+          copyPages(doc2);
         } finally {
           doc1.dispose();
           doc2.dispose();

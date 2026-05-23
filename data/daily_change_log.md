@@ -39,3 +39,9 @@
 - Added two-file picker validation (requires exactly 2 PDFs), merge/export logic, and UI loading state during combine.
 - Output is saved beside the first selected PDF as `<file1>_<file2>_combined.pdf`.
 - Validation: Static review only in this environment; Flutter runtime/build not executed locally because Flutter SDK is unavailable.
+
+## 2026-05-23 13:46 SGT
+- Updated `lib/main.dart` PDF combine implementation to remove unsupported `appendDocument` calls in `syncfusion_flutter_pdf` 26.2.14.
+- Replaced merge logic with explicit page copy using `createTemplate()` + `drawPdfTemplate(...)` into destination pages sized to source pages.
+- This fixes GitHub Actions compile failure: `The method 'appendDocument' isn't defined for the type 'PdfDocument'`.
+- Validation: Log-driven code fix; local Flutter build not run because Flutter SDK is unavailable in this environment.
