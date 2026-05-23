@@ -54,6 +54,19 @@ jobs:
             sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 36/g' android/app/build.gradle
           fi
 
+          # Ensure plugin safeExtGet('compileSdkVersion', 34) resolves to 36
+          # by setting rootProject.ext values used by many Android plugins.
+          if [ -f android/build.gradle ]; then
+            if ! rg -q "compileSdkVersion\\s*=\\s*36" android/build.gradle; then
+              sed -i "/buildscript[[:space:]]*{/i ext {\\n    compileSdkVersion = 36\\n    targetSdkVersion = 36\\n}\\n" android/build.gradle
+            fi
+          fi
+          if [ -f android/build.gradle.kts ]; then
+            if ! rg -q "set\\(\"compileSdkVersion\",\\s*36\\)" android/build.gradle.kts; then
+              sed -i "1i extra[\"compileSdkVersion\"] = 36\\nextra[\"targetSdkVersion\"] = 36\\n" android/build.gradle.kts
+            fi
+          fi
+
       - name: Install dependencies
         run: flutter pub get
 

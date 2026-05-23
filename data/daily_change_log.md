@@ -51,3 +51,8 @@
 - Added rewrite rules for `safeExtGet(..., 34/35)` patterns and a verification print for `file_picker` Gradle SDK lines from `$HOME/.pub-cache` before build.
 - This targets repeated `:file_picker:checkReleaseAarMetadata` failures where the plugin still resolved to android-34.
 - Validation: Log-driven workflow fix; pending verification in next GitHub Actions run.
+
+## 2026-05-23 14:16 SGT
+- Updated `.github/workflows/build-apk.yml` to set root Android Gradle `ext.compileSdkVersion=36` and `ext.targetSdkVersion=36` (and Kotlin DSL equivalent `extra[...]`) after CI bootstrap.
+- This directly fixes plugin `safeExtGet('compileSdkVersion', 34)` fallback behavior used by `file_picker`, so plugin modules resolve API 36 instead of 34.
+- Validation: Log-driven workflow fix; pending verification in next GitHub Actions run.
