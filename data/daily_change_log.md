@@ -28,3 +28,8 @@
 - Updated `.github/workflows/build-apk.yml` to enforce `flutter.compileSdkVersion=36` and `flutter.targetSdkVersion=36` in `android/gradle.properties` during CI.
 - This makes plugin modules (including `file_picker`) compile against API 36, not just the app module.
 - Validation: Log-driven fix; pending verification in next GitHub Actions run.
+
+## 2026-05-23 12:41 SGT
+- Updated `.github/workflows/build-apk.yml` to add a CI patch step that rewrites `compileSdk`/`targetSdk` to `36` across Gradle files in workspace and `$HOME/.pub-cache` after `flutter pub get`.
+- This addresses plugin-level Android API mismatches where `file_picker` still compiled against android-34 in GitHub Actions.
+- Validation: Log-driven fix; pending verification in next GitHub Actions run.
