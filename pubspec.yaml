@@ -1,0 +1,25 @@
+name: pdf_stamp_mvp
+description: Offline PDF stamp MVP with automatic white background removal.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  file_picker: ^8.0.7
+  path: ^1.9.0
+  image: ^4.2.0
+  pdfx: ^2.7.0
+  syncfusion_flutter_pdf: ^26.2.14
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
