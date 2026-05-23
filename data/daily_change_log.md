@@ -8,3 +8,8 @@
 - Added `.github/workflows/build-apk.yml` to build a release Android APK on GitHub Actions for push, pull request, and manual runs.
 - Updated `README.md` with CI artifact details and steps to download `app-release.apk` from workflow artifacts.
 - Validation: Workflow syntax reviewed locally; could not execute GitHub Actions in this environment.
+
+## 2026-05-23 11:52 SGT
+- Updated `.github/workflows/build-apk.yml` to bootstrap the missing Android host project in CI using `flutter create --platforms=android` when `android/` is absent.
+- This fixes the GitHub Actions error: unsupported Gradle project during `flutter build apk --release`.
+- Validation: Change reviewed locally; workflow execution pending on next GitHub push.
