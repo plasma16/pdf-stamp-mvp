@@ -50,6 +50,8 @@ class _StampHomePageState extends State<StampHomePage> {
   double _rotationDeg = 0;
 
   bool _applyAllPages = false;
+  bool _isMovingStamp = false;
+  bool _showDeleteConfirm = false;
   final TextEditingController _startPageCtl = TextEditingController(text: '1');
   final TextEditingController _endPageCtl = TextEditingController(text: '1');
 
@@ -306,6 +308,72 @@ class _StampHomePageState extends State<StampHomePage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
+
+  void _handlePdfTap(TapDownDetails details) {
+    setState(() {
+      _tapPosition = details.localPosition;
+      // If we tap on the stamp, enter move mode
+      if (_cleanedStampPng != null) {
+        final stampRect = Rect.fromLTWH(_stampX, _stampY, _stampW, _stampH);
+        if (stampRect.contains(details.localPosition)) {
+          _isMovingStamp = true;
+          _showSnack("Stamp move mode: drag to reposition");
+        } else {
+          // Tap on PDF page - place stamp at tap location
+          _stampX = details.localPosition.dx - (_stampW / 2);
+          _stampY = details.localPosition.dy - (_stampH / 2);
+          // Keep within reasonable bounds
+          final maxWidth = 1000.0; // Conservative limit
+          _stampX = _stampX.clamp(0, maxWidth);
+          _stampY = _stampY.clamp(0, maxWidth * 0.75); // Approximate height limit
+          _isMovingStamp = false;
+        }
+      } else {
+        // No stamp loaded yet - do nothing
+        _isMovingStamp = false;
+      }
+    });
+  }
+
+  void _handleStampTap(TapDownDetails details) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Stamp Options"),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                GestureDetector(
+                  child: Text("Move"),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    setState(() {
+                      _isMovingStamp = true;
+                      _showSnack("Stamp move mode: drag to reposition");
+                    });
+                  },
+                ),
+                Padding(padding: EdgeInsets.all(8.0)),
+                GestureDetector(
+                  child: Text("Delete"),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    setState(() {
+                      _cleanedStampPng = null;
+                      _stampFile = null;
+                      _showSnack("Stamp deleted");
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {

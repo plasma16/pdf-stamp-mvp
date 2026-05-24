@@ -82,3 +82,12 @@
   * Improved stamp positioning controls
 - Updated lib/main.dart with gesture handling and state management
 
+
+## 2026-05-24 02:55 SGT
+- Added delete function for PDF stamp:
+  * Tap on stamp shows dialog with Move and Delete options
+  * Delete option removes the stamp image and resets state
+  * Move option enters drag-to-reposition mode
+  * Enhanced user interaction with clear feedback
+- Updated lib/main.dart with _handlePdfTap and _handleStampTap methods
+
