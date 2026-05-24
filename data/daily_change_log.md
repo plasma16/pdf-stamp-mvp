@@ -68,3 +68,7 @@
 - Renamed picker action to `Pick Stamp Image` and generalized error text from PNG-specific wording.
 - Existing white-background cleanup pipeline remains in place and now runs for both PNG and JPG/JPEG inputs before stamping.
 - Validation: Static code review only; local Flutter build/test not run because Flutter SDK is unavailable in this environment.
+
+## 2026-05-24 01:36 SGT
+- Incremented version in pubspec.yaml from 0.1.0+1 to 0.1.0+2 to allow reinstallation of APK with same version name.
+- Commit pubspec.yaml.
