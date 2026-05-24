@@ -72,3 +72,13 @@
 ## 2026-05-24 01:36 SGT
 - Incremented version in pubspec.yaml from 0.1.0+1 to 0.1.0+2 to allow reinstallation of APK with same version name.
 - Commit pubspec.yaml.
+
+## 2026-05-24 02:23 SGT
+- Enhanced PDF stamp interaction:
+  * Added scrollbar for easier PDF navigation
+  * Added tap-to-place stamp functionality on PDF pages
+  * Added stamp tap-to-enter move mode (drag to reposition)
+  * Added visual feedback (opacity change) when stamp is in move mode
+  * Improved stamp positioning controls
+- Updated lib/main.dart with gesture handling and state management
+

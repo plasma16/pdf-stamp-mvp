@@ -350,42 +350,39 @@ class _StampHomePageState extends State<StampHomePage> {
                   height: MediaQuery.of(context).size.height * 0.55,
                   child: Stack(
                     children: [
-                      PdfViewPinch(
-                        controller: _pdfController!,
-                        onPageChanged: (page) {
-                          setState(() {
-                            _pageNumber = page;
-                          });
-                        },
-                        onDocumentLoaded: (doc) {
-                          setState(() {
-                            _pageCount = doc.pagesCount;
-                            _startPageCtl.text = '$_pageNumber';
-                            _endPageCtl.text = '$_pageNumber';
-                          });
-                        },
-                      ),
+Scrollbar(
+  thumbVisibility: true,
+  interactive: true,
+  child:
+                        PdfViewPinch(
+                          controller: _pdfController!,
+                          onPageChanged: (page) {
+                            setState(() {
+                              _pageNumber = page;
+                            });
+                          },
+                          onDocumentLoaded: (doc) {
+                            setState(() {
+                              _pageCount = doc.pagesCount;
+                              _startPageCtl.text = '$_pageNumber';
+                              _endPageCtl.text = '$_pageNumber';
+                            });
+                          },
+    onTapDown: (details) => _handlePdfTap(details),
+                        ),
+)
                       if (_cleanedStampPng != null)
                         Positioned(
                           left: _stampX,
                           top: _stampY,
-                          child: GestureDetector(
-                            onPanUpdate: (d) {
-                              setState(() {
-                                _stampX = (_stampX + d.delta.dx).clamp(0.0, 10000.0);
-                                _stampY = (_stampY + d.delta.dy).clamp(0.0, 10000.0);
-                              });
-                            },
-                            child: Transform.rotate(
-                              angle: _rotationDeg * 3.1415926535 / 180.0,
-                              child: Image.memory(
-                                _cleanedStampPng!,
-                                width: _stampW,
-                                height: _stampH,
-                              ),
-                            ),
-                          ),
-                        ),
+                            child: GestureDetector(                              onPanUpdate: (d) {                                if (_isMovingStamp) {                                  setState(() {                                    _stampX = (_stampX + d.delta.dx).clamp(0.0, 10000.0);                                    _stampY = (_stampY + d.delta.dy).clamp(0.0, 10000.0);                                  });                                }                              },                              onTapDown: (details) => _handleStampTap(details),                              child: Transform.rotate(                                angle: _rotationDeg * 3.1415926535 / 180.0,                                Opacity(
+          opacity: _isMovingStamp ? 0.7 : 1.0,
+          child: Image.memory(
+            _cleanedStampPng!,
+            width: _stampW,
+            height: _stampH,
+          ),
+        ),                              ),                            ),                        ),
                     ],
                   ),
                 )
