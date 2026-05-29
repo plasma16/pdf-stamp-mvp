@@ -124,7 +124,11 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: static review only; Flutter SDK unavailable in this environment.
 
-## 2026-05-29 19:59 SGT
-- Added concise maintenance entry with current SGT timestamp.
-- Validation: `git status --short` reviewed; only `data/daily_change_log.md` is a tracked modification for this commit (backup artifacts remain untracked).
+## 2026-05-29 20:01 SGT
+- Implemented behavior updates in `lib/main.dart`:
+  - Output files now always save next to the input PDF using `_buildUniqueSiblingFile(...)` (same directory, collision-safe suffix numbering).
+  - In moving-stamp mode, single-finger touch/drag anywhere on the PDF preview repositions the stamp.
+  - Two-finger gestures no longer move the stamp (pointer tracking), allowing PDF gesture handling underneath.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: static diff review only; local `flutter`/`dart` commands unavailable in this environment.
 

@@ -334,6 +334,9 @@ class _StampHomePageState extends State<StampHomePage> {
   bool _isExporting = false;
   bool _isCombining = false;
 
+  final Set<int> _activePointers = <int>{};
+  int? _movingPointerId;
+
   @override
   void dispose() {
     _pdfController?.dispose();
@@ -473,10 +476,10 @@ class _StampHomePageState extends State<StampHomePage> {
         }
 
         final outBytes = Uint8List.fromList(await outDoc.save());
-        final dir   = file1.parent;
-        final base1 = p.basenameWithoutExtension(file1.path);
-        final base2 = p.basenameWithoutExtension(file2.path);
-        final outFile = File(p.join(dir.path, '${base1}_${base2}_combined.pdf'));
+        final outFile = _buildUniqueSiblingFile(
+          file1,
+          suffix: '_${p.basenameWithoutExtension(file2.path)}_combined',
+        );
         await outFile.writeAsBytes(outBytes, flush: true);
         _showSnack('Saved: ${outFile.path}');
       } finally {
@@ -529,9 +532,10 @@ class _StampHomePageState extends State<StampHomePage> {
       final outputBytes = Uint8List.fromList(await document.save());
       document.dispose();
 
-      final dir     = _pdfFile!.parent;
-      final base    = p.basenameWithoutExtension(_pdfFile!.path);
-      final outFile = File(p.join(dir.path, '${base}_stamped.pdf'));
+      final outFile = _buildUniqueSiblingFile(
+        _pdfFile!,
+        suffix: '_stamped',
+      );
       await outFile.writeAsBytes(outputBytes, flush: true);
       _showSnack('Saved: ${outFile.path}');
     } catch (e) {
@@ -550,6 +554,58 @@ class _StampHomePageState extends State<StampHomePage> {
     final from = s <= e ? s : e;
     final to   = s <= e ? e : s;
     return [for (var pp = from; pp <= to; pp++) pp - 1];
+  }
+
+  File _buildUniqueSiblingFile(
+    File source, {
+    required String suffix,
+    String extension = '.pdf',
+  }) {
+    final dir = source.parent;
+    final base = p.basenameWithoutExtension(source.path);
+    final preferred = File(p.join(dir.path, '$base$suffix$extension'));
+    if (!preferred.existsSync()) return preferred;
+
+    var index = 1;
+    while (true) {
+      final candidate = File(
+        p.join(dir.path, '$base$suffix($index)$extension'),
+      );
+      if (!candidate.existsSync()) return candidate;
+      index++;
+    }
+  }
+
+  void _handlePreviewPointerDown(PointerDownEvent event) {
+    _activePointers.add(event.pointer);
+    if (!_isMovingStamp) return;
+    if (_activePointers.length != 1) {
+      _movingPointerId = null;
+      return;
+    }
+    _movingPointerId = event.pointer;
+    _repositionStampTo(event.localPosition);
+  }
+
+  void _handlePreviewPointerMove(PointerMoveEvent event) {
+    if (!_isMovingStamp) return;
+    if (_activePointers.length != 1) return;
+    if (_movingPointerId != event.pointer) return;
+    _repositionStampTo(event.localPosition);
+  }
+
+  void _handlePreviewPointerUpOrCancel(PointerEvent event) {
+    _activePointers.remove(event.pointer);
+    if (_movingPointerId == event.pointer) {
+      _movingPointerId = null;
+    }
+  }
+
+  void _repositionStampTo(Offset localPosition) {
+    setState(() {
+      _stampX = (localPosition.dx - (_stampW / 2)).clamp(0.0, 10000.0);
+      _stampY = (localPosition.dy - (_stampH / 2)).clamp(0.0, 10000.0);
+    });
   }
 
   void _showSnack(String message) {
@@ -714,20 +770,27 @@ class _StampHomePageState extends State<StampHomePage> {
                       child: _pdfController != null
                           ? Stack(
                               children: [
-                                Scrollbar(
-                                  thumbVisibility: true,
-                                  interactive: true,
-                                  child: PdfViewPinch(
-                                    controller: _pdfController!,
-                                    onPageChanged: (page) =>
-                                        setState(() => _pageNumber = page),
-                                    onDocumentLoaded: (doc) {
-                                      setState(() {
-                                        _pageCount = doc.pagesCount;
-                                        _startPageCtl.text = '$_pageNumber';
-                                        _endPageCtl.text   = '$_pageNumber';
-                                      });
-                                    },
+                                Listener(
+                                  behavior: HitTestBehavior.translucent,
+                                  onPointerDown: _handlePreviewPointerDown,
+                                  onPointerMove: _handlePreviewPointerMove,
+                                  onPointerUp: _handlePreviewPointerUpOrCancel,
+                                  onPointerCancel: _handlePreviewPointerUpOrCancel,
+                                  child: Scrollbar(
+                                    thumbVisibility: true,
+                                    interactive: true,
+                                    child: PdfViewPinch(
+                                      controller: _pdfController!,
+                                      onPageChanged: (page) =>
+                                          setState(() => _pageNumber = page),
+                                      onDocumentLoaded: (doc) {
+                                        setState(() {
+                                          _pageCount = doc.pagesCount;
+                                          _startPageCtl.text = '$_pageNumber';
+                                          _endPageCtl.text   = '$_pageNumber';
+                                        });
+                                      },
+                                    ),
                                   ),
                                 ),
                                 if (_cleanedStampPng != null)
@@ -735,15 +798,7 @@ class _StampHomePageState extends State<StampHomePage> {
                                     left: _stampX,
                                     top:  _stampY,
                                     child: GestureDetector(
-                                      onPanUpdate: (d) {
-                                        if (_isMovingStamp) {
-                                          setState(() {
-                                            _stampX = (_stampX + d.delta.dx).clamp(0.0, 10000.0);
-                                            _stampY = (_stampY + d.delta.dy).clamp(0.0, 10000.0);
-                                          });
-                                        }
-                                      },
-                                      onTapDown: _handleStampTap,
+                                      onTapDown: _isMovingStamp ? null : _handleStampTap,
                                       child: Transform.rotate(
                                         angle: _rotationDeg * 3.1415926535 / 180.0,
                                         child: Opacity(
