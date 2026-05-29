@@ -182,6 +182,13 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: `flutter analyze` executed locally after Flutter install.
 
+## 2026-05-29 22:09 SGT
+- Fixed move-drag coordinate mismatch in `lib/main.dart`: pan handlers now convert gesture `globalPosition` into preview-stack coordinates via a `GlobalKey` render box before hit-testing and repositioning.
+- This resolves stamp drag not responding when touch starts on the rotated/positioned stamp widget.
+- Kept behavior: drag starts only when touching stamp; background drag continues PDF scroll.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: `flutter analyze` executed locally (same 9 pre-existing warnings/info-level issues; no new errors).
+
 ## 2026-05-29 21:51 SGT
 - Ran Flutter validation in `/home/linuxuser/pdf-stamp-mvp`: `flutter pub get` completed successfully and `flutter analyze` completed with 9 pre-existing issues (warnings/info) in `lib/main.dart`, no new code changes required for this task.
 - Appended this log entry with current SGT timestamp.

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
 
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
@@ -190,6 +191,7 @@ class _StampHomePageState extends State<StampHomePage> {
   Uint8List? _cleanedStampPng;
 
   PdfControllerPinch? _pdfController;
+  final GlobalKey _previewStackKey = GlobalKey();
 
   int _pageNumber = 1;
   int _pageCount = 1;
@@ -580,18 +582,29 @@ class _StampHomePageState extends State<StampHomePage> {
 
   void _handlePreviewPanStart(DragStartDetails details) {
     if (!_isMovingStamp) return;
-    final pos = details.localPosition;
-    if (!_isPointOnStamp(pos)) {
+    final stackContext = _previewStackKey.currentContext;
+    final renderBox =
+        stackContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    final globalPos = details.globalPosition;
+    final localInPreview = renderBox.globalToLocal(globalPos);
+    if (!_isPointOnStamp(localInPreview)) {
       _movingPointerOffset = null;
       _showSnack('Start dragging on the stamp to move it');
       return;
     }
-    _movingPointerOffset = pos - Offset(_stampX, _stampY);
+    _movingPointerOffset = localInPreview - Offset(_stampX, _stampY);
   }
 
   void _handlePreviewPanUpdate(DragUpdateDetails details) {
     if (!_isMovingStamp || _movingPointerOffset == null) return;
-    _repositionStampWithOffset(details.localPosition);
+    final stackContext = _previewStackKey.currentContext;
+    final renderBox = stackContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    final localInPreview = renderBox.globalToLocal(details.globalPosition);
+    _repositionStampWithOffset(localInPreview);
   }
 
   void _handlePreviewPanEnd(DragEndDetails details) {
@@ -1084,6 +1097,7 @@ class _StampHomePageState extends State<StampHomePage> {
     );
 
     return Stack(
+      key: _previewStackKey,
       fit: StackFit.expand,
       children: [
         preview,
