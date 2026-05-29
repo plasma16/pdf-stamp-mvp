@@ -132,3 +132,9 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: static diff review only; local `flutter`/`dart` commands unavailable in this environment.
 
+## 2026-05-29 20:36 SGT
+- Updated `lib/main.dart` stamp interaction state by replacing prior page-range/delete controller fields with paste/move interaction helpers (`_isPasteMode`, `_movingPointerOffset`, `_isInteractingWithStamp`, `_stampBounds`, `_isPointOnStamp`).
+- Simplified state lifecycle by removing unused text controller disposal paths tied to removed page-range inputs.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: verified local git diff and staging scope; Flutter SDK is unavailable in this environment, so runtime/build validation was not executed.
+

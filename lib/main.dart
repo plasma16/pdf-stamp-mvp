@@ -325,23 +325,23 @@ class _StampHomePageState extends State<StampHomePage> {
   double _stampH = 90;
   double _rotationDeg = 0;
 
-  bool _applyAllPages = false;
   bool _isMovingStamp = false;
-  bool _showDeleteConfirm = false;
-  final TextEditingController _startPageCtl = TextEditingController(text: '1');
-  final TextEditingController _endPageCtl   = TextEditingController(text: '1');
+  bool _isPasteMode = false;
 
   bool _isExporting = false;
   bool _isCombining = false;
 
   final Set<int> _activePointers = <int>{};
   int? _movingPointerId;
+  Offset? _movingPointerOffset;
+
+  bool get _isInteractingWithStamp => _isMovingStamp || _isPasteMode;
+  Rect get _stampBounds => Rect.fromLTWH(_stampX, _stampY, _stampW, _stampH);
+  bool _isPointOnStamp(Offset localPosition) => _stampBounds.contains(localPosition);
 
   @override
   void dispose() {
     _pdfController?.dispose();
-    _startPageCtl.dispose();
-    _endPageCtl.dispose();
     super.dispose();
   }
 
