@@ -377,13 +377,20 @@ class _StampHomePageState extends State<StampHomePage> {
   @override
   Widget build(BuildContext context) {
     final canPlaceStamp = _pdfFile != null && _cleanedStampPng != null;
+    final mediaQuery = MediaQuery.of(context);
+    final safeBodyHeight = mediaQuery.size.height -
+        mediaQuery.padding.top -
+        mediaQuery.padding.bottom -
+        kToolbarHeight;
+    final previewHeight = (safeBodyHeight * 0.55).clamp(200.0, 700.0).toDouble();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Offline PDF Stamp MVP')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Column(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Wrap(
@@ -414,7 +421,7 @@ class _StampHomePageState extends State<StampHomePage> {
               const SizedBox(height: 14),
               if (_pdfController != null)
                 SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.55,
+                  height: previewHeight,
                   child: Stack(
                     children: [
                       Scrollbar(
@@ -539,6 +546,7 @@ class _StampHomePageState extends State<StampHomePage> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

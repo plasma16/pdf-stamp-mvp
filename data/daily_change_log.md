@@ -103,3 +103,10 @@
 - Changed files: `.github/workflows/build-apk.yml`.
 - Validation: Diff reviewed locally; workflow execution will be validated on next GitHub Actions run after push.
 
+## 2026-05-29 19:32 SGT
+- Updated `lib/main.dart` layout handling to improve viewport safety and prevent constrained preview sizing issues.
+- Added `SafeArea` wrapping and computed `previewHeight` from safe body height (`MediaQuery` minus padding and toolbar), clamped between `200` and `700`.
+- Applied computed `previewHeight` to the PDF preview `SizedBox` to keep the editor usable across screen sizes.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: `git diff --stat` confirms only intended tracked files changed; local Flutter runtime/build not executed in this environment because Flutter SDK is unavailable.
+
