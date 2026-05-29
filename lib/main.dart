@@ -176,6 +176,32 @@ class _LabelledSlider extends StatelessWidget {
   }
 }
 
+class _CheckerboardPainter extends CustomPainter {
+  const _CheckerboardPainter({this.cellSize = 8});
+  final double cellSize;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final light = Paint()..color = const Color(0xFFECECEC);
+    final dark = Paint()..color = const Color(0xFFD8D8D8);
+
+    for (double y = 0; y < size.height; y += cellSize) {
+      for (double x = 0; x < size.width; x += cellSize) {
+        final isDark = ((x / cellSize).floor() + (y / cellSize).floor()) % 2 == 0;
+        canvas.drawRect(
+          Rect.fromLTWH(x, y, cellSize, cellSize),
+          isDark ? dark : light,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CheckerboardPainter oldDelegate) {
+    return oldDelegate.cellSize != cellSize;
+  }
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 class StampHomePage extends StatefulWidget {
   const StampHomePage({super.key});
@@ -908,11 +934,29 @@ class _StampHomePageState extends State<StampHomePage> {
                               ),
                               const SizedBox(height: 8),
                               Center(
-                                child: Image.memory(
-                                  _activePreviewStampPng!,
-                                  width: 120,
-                                  height: 52,
-                                  fit: BoxFit.contain,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: SizedBox(
+                                    width: 120,
+                                    height: 52,
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        const CustomPaint(
+                                          painter: _CheckerboardPainter(
+                                              cellSize: 8),
+                                        ),
+                                        Center(
+                                          child: Image.memory(
+                                            _activePreviewStampPng!,
+                                            width: 120,
+                                            height: 52,
+                                            fit: BoxFit.contain,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],

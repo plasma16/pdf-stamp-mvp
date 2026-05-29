@@ -195,6 +195,7 @@
   - added border-color distance mode for gray/beige scan backgrounds when aggressiveness is high,
   - kept soft-fade transition to reduce halo edges.
 - This makes `Clean=100` materially more aggressive against opaque paper backgrounds.
+- Added checkered transparency backdrop to the drawer preview so background removal is visible even on white UI backgrounds.
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: `flutter analyze` executed locally (same 9 warnings/info-level issues; no new errors).
 
