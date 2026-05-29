@@ -273,6 +273,36 @@ class _StampHomePageState extends State<StampHomePage> {
     if (source == null) return null;
 
     final out = img.Image.from(source);
+
+    // Dynamic near-white thresholding based on border sampling.
+    // This handles scanned signatures where background isn't pure #FFFFFF.
+    final borderSamples = <int>[];
+    final maxX = out.width - 1;
+    final maxY = out.height - 1;
+
+    void samplePixel(int x, int y) {
+      final px = out.getPixel(x, y);
+      final r = px.r.toInt();
+      final g = px.g.toInt();
+      final b = px.b.toInt();
+      borderSamples.add(((r + g + b) / 3).round());
+    }
+
+    for (var x = 0; x < out.width; x++) {
+      samplePixel(x, 0);
+      samplePixel(x, maxY);
+    }
+    for (var y = 1; y < maxY; y++) {
+      samplePixel(0, y);
+      samplePixel(maxX, y);
+    }
+
+    borderSamples.sort();
+    final p90Index = (borderSamples.length * 0.9).floor().clamp(0, borderSamples.length - 1);
+    final borderBrightP90 = borderSamples[p90Index];
+    final hardWhiteThreshold = (borderBrightP90 - 5).clamp(220, 250);
+    final softWhiteThreshold = (hardWhiteThreshold - 25).clamp(190, 235);
+
     for (var y = 0; y < out.height; y++) {
       for (var x = 0; x < out.width; x++) {
         final px = out.getPixel(x, y);
@@ -280,21 +310,30 @@ class _StampHomePageState extends State<StampHomePage> {
         final g = px.g.toInt();
         final b = px.b.toInt();
         final a = px.a.toInt();
+
         final maxRgb = [r, g, b].reduce((a, b) => a > b ? a : b);
         final minRgb = [r, g, b].reduce((a, b) => a < b ? a : b);
         final spread = maxRgb - minRgb;
+        final brightness = (r + g + b) / 3.0;
 
         int outAlpha = a;
-        if (r > 245 && g > 245 && b > 245 && spread < 15) {
+
+        // Hard remove neutral near-white background.
+        if (brightness >= hardWhiteThreshold && spread <= 22) {
           outAlpha = 0;
-        } else if (r > 230 && g > 230 && b > 230 && spread < 20) {
-          final brightness = (r + g + b) / 3.0;
-          final t = ((brightness - 230) / 15).clamp(0.0, 1.0);
-          outAlpha = (a * (1.0 - t * 0.85)).round();
         }
-        out.setPixelRgba(x, y, r, g, b, outAlpha);
+        // Soft fade for lighter neutral pixels to avoid harsh edge halos.
+        else if (brightness >= softWhiteThreshold && spread <= 30) {
+          final t = ((brightness - softWhiteThreshold) /
+                  (hardWhiteThreshold - softWhiteThreshold).clamp(1, 255))
+              .clamp(0.0, 1.0);
+          outAlpha = (a * (1.0 - t * 0.92)).round();
+        }
+
+        out.setPixelRgba(x, y, r, g, b, outAlpha.clamp(0, 255));
       }
     }
+
     return Uint8List.fromList(img.encodePng(out));
   }
 
@@ -374,8 +413,9 @@ class _StampHomePageState extends State<StampHomePage> {
       final pdfBytes = await _pdfFile!.readAsBytes();
       final document = sfpdf.PdfDocument(inputBytes: pdfBytes);
       final totalPages = document.pages.count;
+      final currentPageIndex = (_pageNumber - 1).clamp(0, totalPages - 1);
 
-      for (int idx = 0; idx < totalPages; idx++) {
+      for (final idx in [currentPageIndex]) {
         final page = document.pages[idx];
         final pageSize = page.size;
         final previewW = MediaQuery.of(context).size.width;
@@ -924,10 +964,6 @@ class _StampHomePageState extends State<StampHomePage> {
     final preview = GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTapDown: _isPasteMode ? _handlePreviewTapDown : null,
-      onPanStart: _isMovingStamp ? _handlePreviewPanStart : null,
-      onPanUpdate: _isMovingStamp ? _handlePreviewPanUpdate : null,
-      onPanEnd: _isMovingStamp ? _handlePreviewPanEnd : null,
-      onPanCancel: _isMovingStamp ? _handlePreviewPanCancel : null,
       child: pdfView,
     );
 
@@ -940,7 +976,12 @@ class _StampHomePageState extends State<StampHomePage> {
             left: _stampX,
             top: _stampY,
             child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
               onTapDown: _isMovingStamp ? null : _handleStampTap,
+              onPanStart: _isMovingStamp ? _handlePreviewPanStart : null,
+              onPanUpdate: _isMovingStamp ? _handlePreviewPanUpdate : null,
+              onPanEnd: _isMovingStamp ? _handlePreviewPanEnd : null,
+              onPanCancel: _isMovingStamp ? _handlePreviewPanCancel : null,
               child: Transform.rotate(
                 angle: _rotationDeg * 3.1415926535 / 180.0,
                 child: Opacity(

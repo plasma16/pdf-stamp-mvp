@@ -153,3 +153,16 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: static code review and targeted diff checks only; Flutter SDK unavailable in this environment.
 
+## 2026-05-29 21:39 SGT
+- Fixed stamp-drag regression: moved move-mode pan handlers from the full PDF overlay `GestureDetector` to the stamp widget `GestureDetector` itself.
+- Result: dragging works when touching the stamp, while PDF keeps native scroll/zoom gestures when touching background.
+- Kept paste-mode tap handler on the PDF-level overlay for intentional placement flow.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: static code review and targeted diff checks only; Flutter SDK unavailable in this environment.
+
+## 2026-05-29 21:40 SGT
+- Changed export behavior in `lib/main.dart` to stamp only the currently viewed page (`_pageNumber`) instead of all pages.
+- This aligns with tap-to-place expectation: one placement affects one selected page.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: static code review and targeted diff checks only; Flutter SDK unavailable in this environment.
+
