@@ -96,7 +96,7 @@ jobs:
           find "$HOME/.pub-cache" -type f -path "*file_picker*/android/build.gradle*" -print -exec sh -c "echo '---'; grep -nE 'compileSdk|targetSdk|safeExtGet' \"\$1\" || true" _ {} \;
 
       - name: Build release APK
-        run: flutter build apk --release --build-number "${{ github.run_number }}"
+        run: flutter build apk --release --build-name "0.2.0.${{ github.run_number }}" --build-number "${{ github.run_number }}"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
