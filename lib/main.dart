@@ -915,6 +915,7 @@ class _StampHomePageState extends State<StampHomePage> {
     }
 
     return Stack(
+      fit: StackFit.expand,
       children: [
         preview,
         if (_cleanedStampPng != null)
