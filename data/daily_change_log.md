@@ -215,3 +215,11 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: ran `flutter analyze` (same 9 existing warnings/info; no new errors).
 
+## 2026-05-29 22:47 SGT
+- Replaced separate `Width` and `Height` controls with a single `Size` slider in `lib/main.dart`.
+- Enforced fixed aspect ratio scaling for both pending stamp placement and selected placed stamps by storing each stamp's intrinsic base dimensions and applying a uniform scale.
+- Updated paste flow so pending stamp base ratio is derived from the processed source image and initial size is set via uniform scaling.
+- Kept existing `Rotate` and `Clean` controls unchanged.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: ran `flutter analyze` locally; same 9 pre-existing warnings/info-level issues, no new analyzer errors.
+

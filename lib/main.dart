@@ -207,17 +207,22 @@ class _PlacedStamp {
     required this.png,
     required this.x,
     required this.y,
-    required this.w,
-    required this.h,
+    required this.baseWidth,
+    required this.baseHeight,
+    required this.scale,
     required this.rotationDeg,
   });
 
   Uint8List png;
   double x;
   double y;
-  double w;
-  double h;
+  double baseWidth;
+  double baseHeight;
+  double scale;
   double rotationDeg;
+
+  double get w => baseWidth * scale;
+  double get h => baseHeight * scale;
 
   Rect get bounds => Rect.fromLTWH(x, y, w, h);
 }
@@ -244,10 +249,17 @@ class _StampHomePageState extends State<StampHomePage> {
   int _pageNumber = 1;
   int _pageCount = 1;
 
-  double _stampW = 140;
-  double _stampH = 90;
+  double _pendingStampBaseW = 140;
+  double _pendingStampBaseH = 90;
+  double _pendingStampScale = 1.0;
   double _rotationDeg = 0;
   double _aggressiveness = _kDefaultAggressiveness;
+
+  static const double _minStampScale = 0.25;
+  static const double _maxStampScale = 3.2;
+
+  double get _pendingStampW => _pendingStampBaseW * _pendingStampScale;
+  double get _pendingStampH => _pendingStampBaseH * _pendingStampScale;
 
   bool _isMovingStamp = false;
   bool _isPasteMode = false;
@@ -381,6 +393,13 @@ class _StampHomePageState extends State<StampHomePage> {
           ? null
           : File(result.files.single.path!);
       _pendingStampPng = cleaned;
+      final decoded = img.decodeImage(cleaned);
+      if (decoded != null) {
+        _pendingStampBaseW = decoded.width.toDouble();
+        _pendingStampBaseH = decoded.height.toDouble();
+        _pendingStampScale =
+            (140 / _pendingStampBaseW).clamp(_minStampScale, _maxStampScale);
+      }
       _isPasteMode = true;
       _isMovingStamp = false;
     });
@@ -679,10 +698,11 @@ class _StampHomePageState extends State<StampHomePage> {
     setState(() {
       final stamp = _PlacedStamp(
         png: _pendingStampPng!,
-        x: (pos.dx - (_stampW / 2)).clamp(0.0, 10000.0),
-        y: (pos.dy - (_stampH / 2)).clamp(0.0, 10000.0),
-        w: _stampW,
-        h: _stampH,
+        x: (pos.dx - (_pendingStampW / 2)).clamp(0.0, 10000.0),
+        y: (pos.dy - (_pendingStampH / 2)).clamp(0.0, 10000.0),
+        baseWidth: _pendingStampBaseW,
+        baseHeight: _pendingStampBaseH,
+        scale: _pendingStampScale,
         rotationDeg: _rotationDeg,
       );
       _placedStamps.add(stamp);
@@ -697,9 +717,24 @@ class _StampHomePageState extends State<StampHomePage> {
     final stamp = _placedStamps[index];
     setState(() {
       _selectedStampIndex = index;
-      _stampW = stamp.w;
-      _stampH = stamp.h;
       _rotationDeg = stamp.rotationDeg;
+    });
+  }
+
+  double get _currentStampSize => _selectedStamp?.w ?? _pendingStampW;
+
+  void _updateCurrentStampSize(double size) {
+    final clamped = size.clamp(40.0, 380.0).toDouble();
+    setState(() {
+      final selected = _selectedStamp;
+      if (selected != null) {
+        selected.scale =
+            (clamped / selected.baseWidth).clamp(_minStampScale, _maxStampScale);
+      } else {
+        _pendingStampScale = (clamped / _pendingStampBaseW)
+            .clamp(_minStampScale, _maxStampScale)
+            .toDouble();
+      }
     });
   }
 
@@ -985,30 +1020,12 @@ class _StampHomePageState extends State<StampHomePage> {
                     ),
                     const SizedBox(height: 8),
                     _LabelledSlider(
-                      label: 'Width',
-                      value: _stampW,
+                      label: 'Size',
+                      value: _currentStampSize,
                       min: 40,
                       max: 380,
-                      onChanged: canPlaceStamp
-                          ? (v) => setState(() {
-                              _stampW = v;
-                              final selected = _selectedStamp;
-                              if (selected != null) selected.w = v;
-                            })
-                          : null,
-                    ),
-                    _LabelledSlider(
-                      label: 'Height',
-                      value: _stampH,
-                      min: 25,
-                      max: 260,
-                      onChanged: canPlaceStamp
-                          ? (v) => setState(() {
-                              _stampH = v;
-                              final selected = _selectedStamp;
-                              if (selected != null) selected.h = v;
-                            })
-                          : null,
+                      onChanged:
+                          canPlaceStamp ? _updateCurrentStampSize : null,
                     ),
                     _LabelledSlider(
                       label: 'Rotate',
