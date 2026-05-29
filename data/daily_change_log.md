@@ -97,3 +97,9 @@
 - Changed files: `lib/main.dart`.
 - Validation: root cause confirmed from Actions logs (`lib/main.dart` compile errors at lines 314/439/442/446); local Flutter build not executed because Flutter SDK is unavailable in this environment (`flutter: command not found`).
 
+## 2026-05-29 19:28 SGT
+- Updated `.github/workflows/build-apk.yml` so CI sets APK build number from `${{ github.run_number }}` during `flutter build apk --release`.
+- This prevents Android install conflicts from repeated artifacts sharing the same versionCode.
+- Changed files: `.github/workflows/build-apk.yml`.
+- Validation: Diff reviewed locally; workflow execution will be validated on next GitHub Actions run after push.
+
