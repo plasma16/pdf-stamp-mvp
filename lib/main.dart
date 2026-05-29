@@ -227,6 +227,13 @@ class _PlacedStamp {
   Rect get bounds => Rect.fromLTWH(x, y, w, h);
 }
 
+class _ImageDimensions {
+  const _ImageDimensions(this.width, this.height);
+
+  final double width;
+  final double height;
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 class StampHomePage extends StatefulWidget {
   const StampHomePage({super.key});
@@ -377,6 +384,7 @@ class _StampHomePageState extends State<StampHomePage> {
 
     final bytes = result.files.single.bytes ??
         await File(result.files.single.path!).readAsBytes();
+    final sourceDimensions = _decodeImageDimensions(bytes);
 
     _rawStampBytes = Uint8List.fromList(bytes);
     final cleaned = _makeWhiteTransparent(
@@ -393,10 +401,11 @@ class _StampHomePageState extends State<StampHomePage> {
           ? null
           : File(result.files.single.path!);
       _pendingStampPng = cleaned;
-      final decoded = img.decodeImage(cleaned);
-      if (decoded != null) {
-        _pendingStampBaseW = decoded.width.toDouble();
-        _pendingStampBaseH = decoded.height.toDouble();
+      final cleanedDimensions = _decodeImageDimensions(cleaned);
+      final dimensions = sourceDimensions ?? cleanedDimensions;
+      if (dimensions != null) {
+        _pendingStampBaseW = dimensions.width;
+        _pendingStampBaseH = dimensions.height;
         _pendingStampScale =
             (140 / _pendingStampBaseW).clamp(_minStampScale, _maxStampScale);
       }
@@ -405,6 +414,17 @@ class _StampHomePageState extends State<StampHomePage> {
     });
     Navigator.of(context).pop(); // close drawer
     _showSnack('Tap on PDF to paste stamp');
+  }
+
+  _ImageDimensions? _decodeImageDimensions(Uint8List bytes) {
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null || decoded.width <= 0 || decoded.height <= 0) {
+      return null;
+    }
+    return _ImageDimensions(
+      decoded.width.toDouble(),
+      decoded.height.toDouble(),
+    );
   }
 
   Uint8List? _makeWhiteTransparent(
@@ -696,12 +716,16 @@ class _StampHomePageState extends State<StampHomePage> {
 
   void _addStampAt(Offset pos) {
     setState(() {
+      final pendingDimensions =
+          _pendingStampPng == null ? null : _decodeImageDimensions(_pendingStampPng!);
+      final baseWidth = pendingDimensions?.width ?? _pendingStampBaseW;
+      final baseHeight = pendingDimensions?.height ?? _pendingStampBaseH;
       final stamp = _PlacedStamp(
         png: _pendingStampPng!,
         x: (pos.dx - (_pendingStampW / 2)).clamp(0.0, 10000.0),
         y: (pos.dy - (_pendingStampH / 2)).clamp(0.0, 10000.0),
-        baseWidth: _pendingStampBaseW,
-        baseHeight: _pendingStampBaseH,
+        baseWidth: baseWidth,
+        baseHeight: baseHeight,
         scale: _pendingStampScale,
         rotationDeg: _rotationDeg,
       );

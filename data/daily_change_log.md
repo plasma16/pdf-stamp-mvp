@@ -223,3 +223,10 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: ran `flutter analyze` locally; same 9 pre-existing warnings/info-level issues, no new analyzer errors.
 
+## 2026-05-29 23:05 SGT
+- Fixed aspect-ratio regression after size-slider refactor by deriving stamp base dimensions from decoded source image metadata (with cleaned-image fallback), so pending stamp ratio always matches original image ratio.
+- Hardened stamp placement path to re-derive pending image dimensions at placement time and store per-stamp `baseWidth`/`baseHeight` from actual stamp bytes, preventing ratio drift across slider changes and selection changes.
+- Kept single `Size` slider behavior, multi-stamp persistent tap-to-stamp flow, and selected-stamp editing behavior unchanged.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: `flutter analyze` run locally; 9 pre-existing warnings/info-level issues remain (no new analyzer errors).
+
