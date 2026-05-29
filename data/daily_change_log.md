@@ -230,6 +230,14 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: `flutter analyze` run locally; 9 pre-existing warnings/info-level issues remain (no new analyzer errors).
 
+## 2026-05-29 23:30 SGT
+- Fixed aspect ratio distortion bug in `_exportStampedPdf()` in `lib/main.dart`.
+- Previously, stamp width and height were scaled by independent X and Y factors (`scaleX`, `scaleY`) derived from preview-to-PDF mapping. Since PDF page aspect ratio differs from screen aspect ratio, this stretched/squished stamps on export.
+- Fix: stamp SIZE (w, h) now uses a single uniform scale factor (`min(scaleX, scaleY)`) to preserve aspect ratio; stamp POSITION (x, y) still uses per-axis scaling for correct placement.
+- Also improved preview dimension source: now reads actual preview stack widget size via `_previewStackKey` render box instead of full `MediaQuery` screen size.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: `flutter analyze` run locally; 8 pre-existing warnings/info-level issues, no new analyzer errors.
+
 ## 2026-05-29 23:09 SGT
 - Updated stamp picker in `lib/main.dart` to accept PDF in addition to image files (`png`, `jpg`, `jpeg`, `pdf`).
 - Added `_readStampSourceBytes(PlatformFile)` to preserve existing image behavior and add PDF behavior: when a stamp PDF is selected, render page 1 to PNG (`PdfDocument.openData` + `page.render(...)`) before passing through existing background-cleaning and placement pipeline.

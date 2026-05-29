@@ -672,16 +672,28 @@ class _StampHomePageState extends State<StampHomePage> {
 
       final page = document.pages[currentPageIndex];
       final pageSize = page.size;
-      final previewW = MediaQuery.of(context).size.width;
-      final previewH = MediaQuery.of(context).size.height;
+
+      // Get the preview stack dimensions for coordinate mapping.
+      final stackContext = _previewStackKey.currentContext;
+      final renderBox = stackContext?.findRenderObject() as RenderBox?;
+      final previewSize = renderBox?.size ?? MediaQuery.of(context).size;
+      final previewW = previewSize.width;
+      final previewH = previewSize.height;
+
       final scaleX = pageSize.width / previewW;
       final scaleY = pageSize.height / previewH;
 
+      // Use uniform scale for stamp SIZE to preserve aspect ratio.
+      // Use the smaller of the two so the stamp fits proportionally.
+      final uniformScale = scaleX < scaleY ? scaleX : scaleY;
+
       for (final stamp in _placedStamps) {
+        // Position uses per-axis scaling to maintain placement on the page
         final x = stamp.x * scaleX;
         final y = stamp.y * scaleY;
-        final w = stamp.w * scaleX;
-        final h = stamp.h * scaleY;
+        // Size uses UNIFORM scaling to preserve aspect ratio
+        final w = stamp.w * uniformScale;
+        final h = stamp.h * uniformScale;
 
         final state = page.graphics.save();
         page.graphics.translateTransform(x + (w / 2), y + (h / 2));
