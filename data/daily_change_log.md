@@ -139,12 +139,9 @@
 - Validation: verified local git diff and staging scope; Flutter SDK is unavailable in this environment, so runtime/build validation was not executed.
 
 ## 2026-05-29 20:55 SGT
-- Moved all controls (file pickers, stamp sliders, combine/export actions) into a Drawer (hamburger menu on the left).
-- Removed `SingleChildScrollView` wrapping — PDF now fills the entire screen below the AppBar with no competing scroll.
-- PDF scrolling/zoom handled exclusively by `PdfViewPinch` when not in paste/move mode.
-- Page indicator pill and mode badges (Tap to Paste / Done Moving) shown in AppBar actions area.
-- Paste mode: after picking stamp, drawer closes, user taps PDF to place. Moving mode: drag preserves touch offset.
-- All existing functionality preserved (export all pages, combine, same-dir output, glassmorphism theme).
+- Moved all controls into Drawer; removed SingleChildScrollView; PDF fills full screen.
+- Stamp image no longer rendered on pick — held in `_pendingStampPng` until user taps PDF to place.
+- On paste tap: `_pendingStampPng` → `_cleanedStampPng`, stamp becomes visible at tap location.
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
-- Validation: static review only; Flutter SDK unavailable in this environment.
+- Validation: static review only; Flutter SDK unavailable.
 

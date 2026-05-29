@@ -197,6 +197,7 @@ class _StampHomePageState extends State<StampHomePage> {
 
   bool _isMovingStamp = false;
   bool _isPasteMode = false;
+  Uint8List? _pendingStampPng; // held until user taps to place
 
   bool _isExporting = false;
   bool _isCombining = false;
@@ -259,7 +260,7 @@ class _StampHomePageState extends State<StampHomePage> {
       _stampFile = result.files.single.path == null
           ? null
           : File(result.files.single.path!);
-      _cleanedStampPng = cleaned;
+      _pendingStampPng = cleaned;
       _isPasteMode = true;
       _isMovingStamp = false;
     });
@@ -431,12 +432,14 @@ class _StampHomePageState extends State<StampHomePage> {
   // ── Gesture handlers ────────────────────────────────────────────────────────
 
   void _handlePreviewTapDown(TapDownDetails details) {
-    if (!_isPasteMode) return;
-    _repositionStampTo(details.localPosition);
+    if (!_isPasteMode || _pendingStampPng == null) return;
     setState(() {
+      _cleanedStampPng = _pendingStampPng;
+      _pendingStampPng = null;
       _isPasteMode = false;
       _isMovingStamp = false;
     });
+    _repositionStampTo(details.localPosition);
     _showSnack('Stamp pasted');
   }
 
@@ -516,7 +519,9 @@ class _StampHomePageState extends State<StampHomePage> {
                 Navigator.of(ctx).pop();
                 setState(() {
                   _cleanedStampPng = null;
+                  _pendingStampPng = null;
                   _stampFile = null;
+                  _isPasteMode = false;
                 });
                 _showSnack('Stamp removed');
               },
