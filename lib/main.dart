@@ -331,11 +331,8 @@ class _StampHomePageState extends State<StampHomePage> {
   bool _isExporting = false;
   bool _isCombining = false;
 
-  final Set<int> _activePointers = <int>{};
-  int? _movingPointerId;
   Offset? _movingPointerOffset;
 
-  bool get _isInteractingWithStamp => _isMovingStamp || _isPasteMode;
   Rect get _stampBounds => Rect.fromLTWH(_stampX, _stampY, _stampW, _stampH);
   bool _isPointOnStamp(Offset localPosition) => _stampBounds.contains(localPosition);
 
@@ -368,8 +365,6 @@ class _StampHomePageState extends State<StampHomePage> {
       _pdfFile = file;
       _pageNumber = 1;
       _pageCount = 1;
-      _startPageCtl.text = '1';
-      _endPageCtl.text = '1';
     });
   }
 
@@ -393,7 +388,10 @@ class _StampHomePageState extends State<StampHomePage> {
     setState(() {
       _stampFile  = result.files.single.path == null ? null : File(result.files.single.path!);
       _cleanedStampPng = cleaned;
+      _isPasteMode = true;
+      _isMovingStamp = false;
     });
+    _showSnack('Tap on PDF to paste stamp');
   }
 
   Uint8List? _makeWhiteTransparent(Uint8List inputImage) {
@@ -546,14 +544,7 @@ class _StampHomePageState extends State<StampHomePage> {
   }
 
   List<int> _buildPageIndexes(int totalPages) {
-    if (_applyAllPages) return List<int>.generate(totalPages, (i) => i);
-    final start = int.tryParse(_startPageCtl.text.trim()) ?? _pageNumber;
-    final end   = int.tryParse(_endPageCtl.text.trim())   ?? _pageNumber;
-    final s    = start.clamp(1, totalPages);
-    final e    = end.clamp(1, totalPages);
-    final from = s <= e ? s : e;
-    final to   = s <= e ? e : s;
-    return [for (var pp = from; pp <= to; pp++) pp - 1];
+    return List<int>.generate(totalPages, (i) => i);
   }
 
   File _buildUniqueSiblingFile(
@@ -576,29 +567,46 @@ class _StampHomePageState extends State<StampHomePage> {
     }
   }
 
-  void _handlePreviewPointerDown(PointerDownEvent event) {
-    _activePointers.add(event.pointer);
-    if (!_isMovingStamp) return;
-    if (_activePointers.length != 1) {
-      _movingPointerId = null;
-      return;
-    }
-    _movingPointerId = event.pointer;
-    _repositionStampTo(event.localPosition);
+  void _handlePreviewTapDown(TapDownDetails details) {
+    if (!_isPasteMode) return;
+    _repositionStampTo(details.localPosition);
+    setState(() {
+      _isPasteMode = false;
+      _isMovingStamp = false;
+    });
+    _showSnack('Stamp pasted');
   }
 
-  void _handlePreviewPointerMove(PointerMoveEvent event) {
+  void _handlePreviewPanStart(DragStartDetails details) {
     if (!_isMovingStamp) return;
-    if (_activePointers.length != 1) return;
-    if (_movingPointerId != event.pointer) return;
-    _repositionStampTo(event.localPosition);
+    final localPosition = details.localPosition;
+    if (_isPointOnStamp(localPosition)) {
+      _movingPointerOffset = localPosition - Offset(_stampX, _stampY);
+    } else {
+      _movingPointerOffset = const Offset(0, 0);
+      _repositionStampWithOffset(localPosition);
+    }
   }
 
-  void _handlePreviewPointerUpOrCancel(PointerEvent event) {
-    _activePointers.remove(event.pointer);
-    if (_movingPointerId == event.pointer) {
-      _movingPointerId = null;
-    }
+  void _handlePreviewPanUpdate(DragUpdateDetails details) {
+    if (!_isMovingStamp) return;
+    _repositionStampWithOffset(details.localPosition);
+  }
+
+  void _handlePreviewPanEnd(DragEndDetails details) {
+    _movingPointerOffset = null;
+  }
+
+  void _handlePreviewPanCancel() {
+    _movingPointerOffset = null;
+  }
+
+  void _repositionStampWithOffset(Offset localPosition) {
+    final offset = _movingPointerOffset ?? Offset(_stampW / 2, _stampH / 2);
+    setState(() {
+      _stampX = (localPosition.dx - offset.dx).clamp(0.0, 10000.0);
+      _stampY = (localPosition.dy - offset.dy).clamp(0.0, 10000.0);
+    });
   }
 
   void _repositionStampTo(Offset localPosition) {
@@ -626,7 +634,10 @@ class _StampHomePageState extends State<StampHomePage> {
               title: const Text('Move', style: TextStyle(color: _kTextPrimary)),
               onTap: () {
                 Navigator.of(ctx).pop();
-                setState(() => _isMovingStamp = true);
+                setState(() {
+                  _isMovingStamp = true;
+                  _isPasteMode = false;
+                });
                 _showSnack('Drag to reposition stamp');
               },
             ),
@@ -715,9 +726,11 @@ class _StampHomePageState extends State<StampHomePage> {
                         onPressed: _pickPdf,
                       ),
                       _GlassButton(
-                        label: 'Pick Stamp',
-                        icon: Icons.image_outlined,
-                        onPressed: _pickStampImage,
+                        label: _isPasteMode ? 'Tap PDF to Paste' : 'Pick Stamp',
+                        icon: _isPasteMode
+                            ? Icons.touch_app_outlined
+                            : Icons.image_outlined,
+                        onPressed: _isPasteMode ? null : _pickStampImage,
                       ),
                       _GlassButton(
                         label: _isCombining ? 'Combining…' : 'Combine 2',
@@ -770,12 +783,13 @@ class _StampHomePageState extends State<StampHomePage> {
                       child: _pdfController != null
                           ? Stack(
                               children: [
-                                Listener(
+                                                GestureDetector(
                                   behavior: HitTestBehavior.translucent,
-                                  onPointerDown: _handlePreviewPointerDown,
-                                  onPointerMove: _handlePreviewPointerMove,
-                                  onPointerUp: _handlePreviewPointerUpOrCancel,
-                                  onPointerCancel: _handlePreviewPointerUpOrCancel,
+                                  onTapDown: _isPasteMode ? _handlePreviewTapDown : null,
+                                  onPanStart: _isMovingStamp ? _handlePreviewPanStart : null,
+                                  onPanUpdate: _isMovingStamp ? _handlePreviewPanUpdate : null,
+                                  onPanEnd: _isMovingStamp ? _handlePreviewPanEnd : null,
+                                  onPanCancel: _isMovingStamp ? _handlePreviewPanCancel : null,
                                   child: Scrollbar(
                                     thumbVisibility: true,
                                     interactive: true,
@@ -786,8 +800,6 @@ class _StampHomePageState extends State<StampHomePage> {
                                       onDocumentLoaded: (doc) {
                                         setState(() {
                                           _pageCount = doc.pagesCount;
-                                          _startPageCtl.text = '$_pageNumber';
-                                          _endPageCtl.text   = '$_pageNumber';
                                         });
                                       },
                                     ),
@@ -858,63 +870,6 @@ class _StampHomePageState extends State<StampHomePage> {
                       ),
                     ),
                   ),
-
-                const SizedBox(height: 12),
-
-                // ── Page range + apply-all ─────────────────────────────────
-                _GlassCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: SwitchListTile.adaptive(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text(
-                            'All pages',
-                            style: TextStyle(color: _kTextPrimary, fontSize: 13),
-                          ),
-                          value: _applyAllPages,
-                          onChanged: canPlaceStamp
-                              ? (v) => setState(() => _applyAllPages = v)
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: 70,
-                        child: TextField(
-                          controller: _startPageCtl,
-                          enabled: !_applyAllPages,
-                          keyboardType: TextInputType.number,
-                          style: const TextStyle(color: _kTextPrimary, fontSize: 13),
-                          decoration: const InputDecoration(
-                            labelText: 'Start',
-                            isDense: true,
-                            contentPadding:
-                                EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: 70,
-                        child: TextField(
-                          controller: _endPageCtl,
-                          enabled: !_applyAllPages,
-                          keyboardType: TextInputType.number,
-                          style: const TextStyle(color: _kTextPrimary, fontSize: 13),
-                          decoration: const InputDecoration(
-                            labelText: 'End',
-                            isDense: true,
-                            contentPadding:
-                                EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
 
                 const SizedBox(height: 10),
 

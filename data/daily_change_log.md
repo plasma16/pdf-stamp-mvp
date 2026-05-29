@@ -138,3 +138,11 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: verified local git diff and staging scope; Flutter SDK is unavailable in this environment, so runtime/build validation was not executed.
 
+## 2026-05-29 20:41 SGT
+- Removed two-finger scrolling/pointer-tracking layer on the PDF preview and switched to gesture handlers that keep default `PdfViewPinch` scroll/zoom behavior when not in active stamp interaction.
+- Added explicit paste-on-tap flow (`_isPasteMode`): after picking stamp, user taps PDF once to paste; then paste mode exits.
+- Moving mode now preserves initial touch offset via `_movingPointerOffset`, preventing stamp jump at drag start.
+- Removed Start/End page range UI and logic remnants; export stamps all pages by default.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: static diff verification only; Flutter SDK unavailable in this environment.
+
