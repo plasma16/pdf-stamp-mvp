@@ -174,6 +174,14 @@
 - Changed files: `lib/main.dart`, `pubspec.yaml`, `data/daily_change_log.md`.
 - Validation: static diff/code review only; Flutter SDK unavailable in this environment.
 
+## 2026-05-29 21:56 SGT
+- Removed stamp opacity feature from `lib/main.dart` as requested (deleted opacity slider, related prefs/state, and opacity-based export/render paths).
+- Kept and prioritized background removal aggressiveness (`Clean`) control + persistence and live processed-stamp preview.
+- Stamp rendering/export now use full opacity while moving mode still applies temporary visual dimming only.
+- Re-ran `flutter analyze` after removal; analyzer reports unchanged 9 warnings/info-level issues (no new errors).
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: `flutter analyze` executed locally after Flutter install.
+
 ## 2026-05-29 21:51 SGT
 - Ran Flutter validation in `/home/linuxuser/pdf-stamp-mvp`: `flutter pub get` completed successfully and `flutter analyze` completed with 9 pre-existing issues (warnings/info) in `lib/main.dart`, no new code changes required for this task.
 - Appended this log entry with current SGT timestamp.

@@ -24,8 +24,8 @@ const _kAccentPrimary = Color(0xFF7B61FF);
 const _kAccentSecond  = Color(0xFF00D2FF);
 const _kTextPrimary   = Color(0xFFF0F0FF);
 const _kTextSecond    = Color(0xAAC8C8E8);
-const _kStampOpacityPrefKey = 'stamp_opacity';
-const _kMinStampOpacity = 0.05;
+const _kAggressivenessPrefKey = 'stamp_bg_aggressiveness';
+const _kDefaultAggressiveness = 55.0;
 
 // ── App entry ─────────────────────────────────────────────────────────────────
 void main() {
@@ -186,6 +186,7 @@ class StampHomePage extends StatefulWidget {
 class _StampHomePageState extends State<StampHomePage> {
   File? _pdfFile;
   File? _stampFile;
+  Uint8List? _rawStampBytes;
   Uint8List? _cleanedStampPng;
 
   PdfControllerPinch? _pdfController;
@@ -198,7 +199,7 @@ class _StampHomePageState extends State<StampHomePage> {
   double _stampW = 140;
   double _stampH = 90;
   double _rotationDeg = 0;
-  double _stampOpacity = 1.0;
+  double _aggressiveness = _kDefaultAggressiveness;
 
   bool _isMovingStamp = false;
   bool _isPasteMode = false;
@@ -211,11 +212,12 @@ class _StampHomePageState extends State<StampHomePage> {
 
   Rect get _stampBounds => Rect.fromLTWH(_stampX, _stampY, _stampW, _stampH);
   bool _isPointOnStamp(Offset pos) => _stampBounds.contains(pos);
+  Uint8List? get _activePreviewStampPng => _pendingStampPng ?? _cleanedStampPng;
 
   @override
   void initState() {
     super.initState();
-    _loadStampOpacity();
+    _loadStampSettings();
   }
 
   @override
@@ -224,24 +226,45 @@ class _StampHomePageState extends State<StampHomePage> {
     super.dispose();
   }
 
-  Future<void> _loadStampOpacity() async {
+  Future<void> _loadStampSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getDouble(_kStampOpacityPrefKey);
-    if (saved == null || !mounted) return;
+    final savedAggressiveness = prefs.getDouble(_kAggressivenessPrefKey);
+    if (!mounted) return;
+
     setState(() {
-      _stampOpacity = saved.clamp(_kMinStampOpacity, 1.0).toDouble();
+      if (savedAggressiveness != null) {
+        _aggressiveness = savedAggressiveness.clamp(0.0, 100.0).toDouble();
+      }
     });
   }
 
-  Future<void> _saveStampOpacity(double value) async {
+  Future<void> _saveAggressiveness(double value) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble(_kStampOpacityPrefKey, value);
+    await prefs.setDouble(_kAggressivenessPrefKey, value);
   }
 
-  void _updateStampOpacity(double value) {
-    final clamped = value.clamp(_kMinStampOpacity, 1.0).toDouble();
-    setState(() => _stampOpacity = clamped);
-    unawaited(_saveStampOpacity(clamped));
+  void _updateAggressiveness(double value) {
+    final clamped = value.clamp(0.0, 100.0).toDouble();
+    setState(() => _aggressiveness = clamped);
+    unawaited(_saveAggressiveness(clamped));
+    _reprocessCurrentStampForAggressiveness();
+  }
+
+  void _reprocessCurrentStampForAggressiveness() {
+    if (_rawStampBytes == null) return;
+    final cleaned = _makeWhiteTransparent(
+      _rawStampBytes!,
+      aggressiveness: _aggressiveness,
+    );
+    if (cleaned == null) return;
+
+    setState(() {
+      if (_isPasteMode && _pendingStampPng != null) {
+        _pendingStampPng = cleaned;
+      } else if (_cleanedStampPng != null) {
+        _cleanedStampPng = cleaned;
+      }
+    });
   }
 
   // ── Actions ────────────────────────────────────────────────────────────────
@@ -281,7 +304,11 @@ class _StampHomePageState extends State<StampHomePage> {
     final bytes = result.files.single.bytes ??
         await File(result.files.single.path!).readAsBytes();
 
-    final cleaned = _makeWhiteTransparent(bytes);
+    _rawStampBytes = Uint8List.fromList(bytes);
+    final cleaned = _makeWhiteTransparent(
+      _rawStampBytes!,
+      aggressiveness: _aggressiveness,
+    );
     if (cleaned == null) {
       _showSnack('Could not process stamp image.');
       return;
@@ -299,17 +326,21 @@ class _StampHomePageState extends State<StampHomePage> {
     _showSnack('Tap on PDF to paste stamp');
   }
 
-  Uint8List? _makeWhiteTransparent(Uint8List inputImage) {
+  Uint8List? _makeWhiteTransparent(
+    Uint8List inputImage, {
+    required double aggressiveness,
+  }) {
     final source = img.decodeImage(inputImage);
     if (source == null) return null;
 
     final out = img.Image.from(source);
 
     // Dynamic near-white thresholding based on border sampling.
-    // This handles scanned signatures where background isn't pure #FFFFFF.
+    // Aggressiveness (0..100) controls how much borderline pixels are cleared.
     final borderSamples = <int>[];
     final maxX = out.width - 1;
     final maxY = out.height - 1;
+    final aggr = (aggressiveness / 100).clamp(0.0, 1.0);
 
     void samplePixel(int x, int y) {
       final px = out.getPixel(x, y);
@@ -329,10 +360,17 @@ class _StampHomePageState extends State<StampHomePage> {
     }
 
     borderSamples.sort();
-    final p90Index = (borderSamples.length * 0.9).floor().clamp(0, borderSamples.length - 1);
+    final p90Index =
+        (borderSamples.length * 0.9).floor().clamp(0, borderSamples.length - 1);
     final borderBrightP90 = borderSamples[p90Index];
-    final hardWhiteThreshold = (borderBrightP90 - 5).clamp(220, 250);
-    final softWhiteThreshold = (hardWhiteThreshold - 25).clamp(190, 235);
+
+    final hardWhiteThreshold =
+        (borderBrightP90 + (aggr * 18.0) - 10.0).round().clamp(205, 252);
+    final softWindow = (36 - (aggr * 16.0)).round().clamp(14, 40);
+    final softWhiteThreshold = (hardWhiteThreshold - softWindow).clamp(170, 240);
+    final hardSpreadThreshold = (26 + aggr * 12.0).round();
+    final softSpreadThreshold = (hardSpreadThreshold + 8).clamp(20, 48);
+    final softFadeMax = (0.70 + aggr * 0.28).clamp(0.70, 0.98);
 
     for (var y = 0; y < out.height; y++) {
       for (var x = 0; x < out.width; x++) {
@@ -350,15 +388,15 @@ class _StampHomePageState extends State<StampHomePage> {
         int outAlpha = a;
 
         // Hard remove neutral near-white background.
-        if (brightness >= hardWhiteThreshold && spread <= 22) {
+        if (brightness >= hardWhiteThreshold && spread <= hardSpreadThreshold) {
           outAlpha = 0;
         }
         // Soft fade for lighter neutral pixels to avoid harsh edge halos.
-        else if (brightness >= softWhiteThreshold && spread <= 30) {
+        else if (brightness >= softWhiteThreshold && spread <= softSpreadThreshold) {
           final t = ((brightness - softWhiteThreshold) /
                   (hardWhiteThreshold - softWhiteThreshold).clamp(1, 255))
               .clamp(0.0, 1.0);
-          outAlpha = (a * (1.0 - t * 0.92)).round();
+          outAlpha = (a * (1.0 - t * softFadeMax)).round();
         }
 
         out.setPixelRgba(x, y, r, g, b, outAlpha.clamp(0, 255));
@@ -463,7 +501,7 @@ class _StampHomePageState extends State<StampHomePage> {
         page.graphics.translateTransform(x + (w / 2), y + (h / 2));
         page.graphics.rotateTransform(_rotationDeg);
         page.graphics.translateTransform(-(w / 2), -(h / 2));
-        page.graphics.setTransparency(_stampOpacity);
+        page.graphics.setTransparency(1.0);
         page.graphics.drawImage(
             sfpdf.PdfBitmap(_cleanedStampPng!), Rect.fromLTWH(0, 0, w, h));
         page.graphics.restore(state);
@@ -615,6 +653,7 @@ class _StampHomePageState extends State<StampHomePage> {
               onTap: () {
                 Navigator.of(ctx).pop();
                 setState(() {
+                  _rawStampBytes = null;
                   _cleanedStampPng = null;
                   _pendingStampPng = null;
                   _stampFile = null;
@@ -632,7 +671,8 @@ class _StampHomePageState extends State<StampHomePage> {
   // ── Drawer (burger menu) ──────────────────────────────────────────────────
 
   Widget _buildDrawer() {
-    final canPlaceStamp = _pdfFile != null && _cleanedStampPng != null;
+    final hasAnyStamp = _activePreviewStampPng != null;
+    final canPlaceStamp = _pdfFile != null && hasAnyStamp;
 
     return Drawer(
       child: Container(
@@ -783,13 +823,15 @@ class _StampHomePageState extends State<StampHomePage> {
                           : null,
                     ),
                     _LabelledSlider(
-                      label: 'Opacity',
-                      value: _stampOpacity * 100,
-                      min: _kMinStampOpacity * 100,
+                      label: 'Clean',
+                      value: _aggressiveness,
+                      min: 0,
                       max: 100,
-                      onChanged: (v) => _updateStampOpacity(v / 100),
+                      onChanged: _rawStampBytes != null
+                          ? _updateAggressiveness
+                          : null,
                     ),
-                    if (_cleanedStampPng != null)
+                    if (hasAnyStamp)
                       Padding(
                         padding: const EdgeInsets.only(top: 8, bottom: 6),
                         child: Container(
@@ -804,7 +846,7 @@ class _StampHomePageState extends State<StampHomePage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Preview ${(_stampOpacity * 100).round()}%',
+                                'Preview • Clean ${_aggressiveness.round()}%',
                                 style: const TextStyle(
                                   color: _kTextSecond,
                                   fontSize: 11,
@@ -813,14 +855,11 @@ class _StampHomePageState extends State<StampHomePage> {
                               ),
                               const SizedBox(height: 8),
                               Center(
-                                child: Opacity(
-                                  opacity: _stampOpacity,
-                                  child: Image.memory(
-                                    _cleanedStampPng!,
-                                    width: 120,
-                                    height: 52,
-                                    fit: BoxFit.contain,
-                                  ),
+                                child: Image.memory(
+                                  _activePreviewStampPng!,
+                                  width: 120,
+                                  height: 52,
+                                  fit: BoxFit.contain,
                                 ),
                               ),
                             ],
@@ -1062,8 +1101,7 @@ class _StampHomePageState extends State<StampHomePage> {
               child: Transform.rotate(
                 angle: _rotationDeg * 3.1415926535 / 180.0,
                 child: Opacity(
-                  opacity:
-                      (_stampOpacity * (_isMovingStamp ? 0.65 : 1.0)).clamp(0.0, 1.0).toDouble(),
+                  opacity: _isMovingStamp ? 0.65 : 1.0,
                   child: Image.memory(
                     _cleanedStampPng!,
                     width: _stampW,
