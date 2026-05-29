@@ -1,3 +1,7 @@
+## 2026-05-30 07:25 SGT
+- Fixed `_combineTwoPdfs`: replaced empty `PdfDocument()` + `pages.insert` approach with loading file1 as base document and appending file2 pages via `pages.add()`. The old approach hit null-check errors because `PdfDocument()` creates a default empty page and `createTemplate`/`insert` didn't handle that correctly.
+- `flutter analyze`: 8 pre-existing issues, no new errors.
+
 ## 2026-05-23 10:40 SGT
 - Added `pubspec.yaml`, `analysis_options.yaml`, `.gitignore` for new `pdf-stamp-mvp` Flutter MVP module.
 - Added `lib/main.dart` implementing offline PDF stamping flow: pick PDF, pick PNG stamp, auto white-to-transparent cleanup, drag/resize/rotate placement, page selection, and export `*_stamped.pdf`.

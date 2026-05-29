@@ -763,43 +763,39 @@ class _StampHomePageState extends State<StampHomePage> {
 
       final file1 = File(path1);
       final file2 = File(path2);
-      final outDoc = sfpdf.PdfDocument();
-      try {
-        final doc1 = sfpdf.PdfDocument(inputBytes: await file1.readAsBytes());
-        final doc2 = sfpdf.PdfDocument(inputBytes: await file2.readAsBytes());
-        try {
-          void copyPages(sfpdf.PdfDocument source) {
-            for (int i = 0; i < source.pages.count; i++) {
-              final srcPage = source.pages[i];
-              final pageSize = srcPage.size;
-              final dstPage = outDoc.pages.insert(
-                outDoc.pages.count,
-                Size(pageSize.width, pageSize.height),
-              );
-              dstPage.graphics.drawPdfTemplate(
-                srcPage.createTemplate(),
-                Offset.zero,
-                Size(pageSize.width, pageSize.height),
-              );
-            }
-          }
-          copyPages(doc1);
-          copyPages(doc2);
-        } finally {
-          doc1.dispose();
-          doc2.dispose();
-        }
 
-        final outBytes = Uint8List.fromList(await outDoc.save());
-        final outFile = _buildUniqueSiblingFile(
-          file1,
-          suffix: '_${p.basenameWithoutExtension(file2.path)}_combined',
-        );
-        await outFile.writeAsBytes(outBytes, flush: true);
-        _showSnack('Saved: ${_displaySavedPath(file1, outFile)}');
+      // Load file1 as the base document, then append pages from file2.
+      // Avoids the empty-PdfDocument() default-page pitfall that causes
+      // null-check errors with createTemplate/insert.
+      final doc1Bytes = await file1.readAsBytes();
+      final doc2Bytes = await file2.readAsBytes();
+      final outDoc = sfpdf.PdfDocument(inputBytes: doc1Bytes);
+      final doc2 = sfpdf.PdfDocument(inputBytes: doc2Bytes);
+      try {
+        for (int i = 0; i < doc2.pages.count; i++) {
+          final srcPage = doc2.pages[i];
+          final pageSize = srcPage.size;
+          final template = srcPage.createTemplate();
+          final dstPage = outDoc.pages.add();
+          dstPage.graphics.drawPdfTemplate(
+            template,
+            Offset.zero,
+            Size(pageSize.width, pageSize.height),
+          );
+        }
       } finally {
-        outDoc.dispose();
+        doc2.dispose();
       }
+
+      final outBytes = Uint8List.fromList(await outDoc.save());
+      outDoc.dispose();
+
+      final outFile = _buildUniqueSiblingFile(
+        file1,
+        suffix: '_${p.basenameWithoutExtension(file2.path)}_combined',
+      );
+      await outFile.writeAsBytes(outBytes, flush: true);
+      _showSnack('Saved: ${_displaySavedPath(file1, outFile)}');
     } catch (e) {
       _showSnack('Failed to combine PDFs: $e');
     } finally {
