@@ -894,25 +894,17 @@ class _StampHomePageState extends State<StampHomePage> {
       },
     );
 
-    Widget preview;
-    if (_isPasteMode) {
-      preview = GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTapDown: _handlePreviewTapDown,
-        child: pdfView,
-      );
-    } else if (_isMovingStamp) {
-      preview = GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onPanStart: _handlePreviewPanStart,
-        onPanUpdate: _handlePreviewPanUpdate,
-        onPanEnd: _handlePreviewPanEnd,
-        onPanCancel: _handlePreviewPanCancel,
-        child: pdfView,
-      );
-    } else {
-      preview = pdfView;
-    }
+    // Always keep the same widget tree structure so PdfViewPinch is not
+    // rebuilt (which loses the loaded document). Conditionally wire callbacks.
+    final preview = GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTapDown: _isPasteMode ? _handlePreviewTapDown : null,
+      onPanStart: _isMovingStamp ? _handlePreviewPanStart : null,
+      onPanUpdate: _isMovingStamp ? _handlePreviewPanUpdate : null,
+      onPanEnd: _isMovingStamp ? _handlePreviewPanEnd : null,
+      onPanCancel: _isMovingStamp ? _handlePreviewPanCancel : null,
+      child: pdfView,
+    );
 
     return Stack(
       fit: StackFit.expand,
