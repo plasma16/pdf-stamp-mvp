@@ -205,3 +205,13 @@
 - Changed files: `data/daily_change_log.md`.
 - Validation: command output captured locally in this environment.
 
+## 2026-05-29 22:42 SGT
+- Updated `lib/main.dart` to support **multiple placed stamps** per PDF page via `_PlacedStamp` list model and selection state (`_placedStamps`, `_selectedStampIndex`).
+- Changed paste behavior so "Tap to Stamp" remains persistent after first placement; each tap on PDF adds another stamp using current width/height/rotation settings.
+- Added stamp selection UI in drawer (list of `Stamp 1..N`) and in-canvas selection highlight; selecting a stamp syncs slider controls to that stamp.
+- Updated move/delete behavior to operate on the **selected stamp** only, preserving other placed stamps.
+- Updated export to render **all placed stamps** on the current page.
+- Kept transparency preview on checkerboard and aggressiveness reprocess now updates all placed stamp bitmaps.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: ran `flutter analyze` (same 9 existing warnings/info; no new errors).
+

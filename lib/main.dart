@@ -202,6 +202,26 @@ class _CheckerboardPainter extends CustomPainter {
   }
 }
 
+class _PlacedStamp {
+  _PlacedStamp({
+    required this.png,
+    required this.x,
+    required this.y,
+    required this.w,
+    required this.h,
+    required this.rotationDeg,
+  });
+
+  Uint8List png;
+  double x;
+  double y;
+  double w;
+  double h;
+  double rotationDeg;
+
+  Rect get bounds => Rect.fromLTWH(x, y, w, h);
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 class StampHomePage extends StatefulWidget {
   const StampHomePage({super.key});
@@ -214,7 +234,9 @@ class _StampHomePageState extends State<StampHomePage> {
   File? _pdfFile;
   File? _stampFile;
   Uint8List? _rawStampBytes;
-  Uint8List? _cleanedStampPng;
+  Uint8List? _pendingStampPng; // held until user taps to place
+  final List<_PlacedStamp> _placedStamps = [];
+  int? _selectedStampIndex;
 
   PdfControllerPinch? _pdfController;
   final GlobalKey _previewStackKey = GlobalKey();
@@ -222,8 +244,6 @@ class _StampHomePageState extends State<StampHomePage> {
   int _pageNumber = 1;
   int _pageCount = 1;
 
-  double _stampX = 120;
-  double _stampY = 180;
   double _stampW = 140;
   double _stampH = 90;
   double _rotationDeg = 0;
@@ -231,16 +251,29 @@ class _StampHomePageState extends State<StampHomePage> {
 
   bool _isMovingStamp = false;
   bool _isPasteMode = false;
-  Uint8List? _pendingStampPng; // held until user taps to place
 
   bool _isExporting = false;
   bool _isCombining = false;
 
   Offset? _movingPointerOffset;
 
-  Rect get _stampBounds => Rect.fromLTWH(_stampX, _stampY, _stampW, _stampH);
-  bool _isPointOnStamp(Offset pos) => _stampBounds.contains(pos);
-  Uint8List? get _activePreviewStampPng => _pendingStampPng ?? _cleanedStampPng;
+  _PlacedStamp? get _selectedStamp =>
+      (_selectedStampIndex != null &&
+              _selectedStampIndex! >= 0 &&
+              _selectedStampIndex! < _placedStamps.length)
+          ? _placedStamps[_selectedStampIndex!]
+          : null;
+
+  bool _isPointOnSelectedStamp(Offset pos) {
+    final selected = _selectedStamp;
+    if (selected == null) return false;
+    return selected.bounds.contains(pos);
+  }
+
+  Uint8List? get _activePreviewStampPng =>
+      _pendingStampPng ??
+      _selectedStamp?.png ??
+      (_placedStamps.isNotEmpty ? _placedStamps.last.png : null);
 
   @override
   void initState() {
@@ -287,10 +320,11 @@ class _StampHomePageState extends State<StampHomePage> {
     if (cleaned == null) return;
 
     setState(() {
-      if (_isPasteMode && _pendingStampPng != null) {
+      if (_pendingStampPng != null) {
         _pendingStampPng = cleaned;
-      } else if (_cleanedStampPng != null) {
-        _cleanedStampPng = cleaned;
+      }
+      for (final stamp in _placedStamps) {
+        stamp.png = cleaned;
       }
     });
   }
@@ -541,8 +575,8 @@ class _StampHomePageState extends State<StampHomePage> {
   }
 
   Future<void> _exportStampedPdf() async {
-    if (_pdfFile == null || _cleanedStampPng == null) {
-      _showSnack('Pick both a PDF and a stamp first.');
+    if (_pdfFile == null || _placedStamps.isEmpty) {
+      _showSnack('Pick PDF and place at least one stamp first.');
       return;
     }
     setState(() => _isExporting = true);
@@ -552,26 +586,28 @@ class _StampHomePageState extends State<StampHomePage> {
       final totalPages = document.pages.count;
       final currentPageIndex = (_pageNumber - 1).clamp(0, totalPages - 1);
 
-      for (final idx in [currentPageIndex]) {
-        final page = document.pages[idx];
-        final pageSize = page.size;
-        final previewW = MediaQuery.of(context).size.width;
-        final previewH = MediaQuery.of(context).size.height;
-        final scaleX = pageSize.width / previewW;
-        final scaleY = pageSize.height / previewH;
+      final page = document.pages[currentPageIndex];
+      final pageSize = page.size;
+      final previewW = MediaQuery.of(context).size.width;
+      final previewH = MediaQuery.of(context).size.height;
+      final scaleX = pageSize.width / previewW;
+      final scaleY = pageSize.height / previewH;
 
-        final x = _stampX * scaleX;
-        final y = _stampY * scaleY;
-        final w = _stampW * scaleX;
-        final h = _stampH * scaleY;
+      for (final stamp in _placedStamps) {
+        final x = stamp.x * scaleX;
+        final y = stamp.y * scaleY;
+        final w = stamp.w * scaleX;
+        final h = stamp.h * scaleY;
 
         final state = page.graphics.save();
         page.graphics.translateTransform(x + (w / 2), y + (h / 2));
-        page.graphics.rotateTransform(_rotationDeg);
+        page.graphics.rotateTransform(stamp.rotationDeg);
         page.graphics.translateTransform(-(w / 2), -(h / 2));
         page.graphics.setTransparency(1.0);
         page.graphics.drawImage(
-            sfpdf.PdfBitmap(_cleanedStampPng!), Rect.fromLTWH(0, 0, w, h));
+          sfpdf.PdfBitmap(stamp.png),
+          Rect.fromLTWH(0, 0, w, h),
+        );
         page.graphics.restore(state);
       }
 
@@ -636,31 +672,53 @@ class _StampHomePageState extends State<StampHomePage> {
 
   void _handlePreviewTapDown(TapDownDetails details) {
     if (!_isPasteMode || _pendingStampPng == null) return;
+    _addStampAt(details.localPosition);
+  }
+
+  void _addStampAt(Offset pos) {
     setState(() {
-      _cleanedStampPng = _pendingStampPng;
-      _pendingStampPng = null;
-      _isPasteMode = false;
+      final stamp = _PlacedStamp(
+        png: _pendingStampPng!,
+        x: (pos.dx - (_stampW / 2)).clamp(0.0, 10000.0),
+        y: (pos.dy - (_stampH / 2)).clamp(0.0, 10000.0),
+        w: _stampW,
+        h: _stampH,
+        rotationDeg: _rotationDeg,
+      );
+      _placedStamps.add(stamp);
+      _selectedStampIndex = _placedStamps.length - 1;
       _isMovingStamp = false;
     });
-    _repositionStampTo(details.localPosition);
-    _showSnack('Stamp pasted');
+    _showSnack('Stamp added');
+  }
+
+  void _selectStampByIndex(int index) {
+    if (index < 0 || index >= _placedStamps.length) return;
+    final stamp = _placedStamps[index];
+    setState(() {
+      _selectedStampIndex = index;
+      _stampW = stamp.w;
+      _stampH = stamp.h;
+      _rotationDeg = stamp.rotationDeg;
+    });
   }
 
   void _handlePreviewPanStart(DragStartDetails details) {
     if (!_isMovingStamp) return;
+    final selected = _selectedStamp;
+    if (selected == null) return;
+
     final stackContext = _previewStackKey.currentContext;
-    final renderBox =
-        stackContext?.findRenderObject() as RenderBox?;
+    final renderBox = stackContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
 
-    final globalPos = details.globalPosition;
-    final localInPreview = renderBox.globalToLocal(globalPos);
-    if (!_isPointOnStamp(localInPreview)) {
+    final localInPreview = renderBox.globalToLocal(details.globalPosition);
+    if (!_isPointOnSelectedStamp(localInPreview)) {
       _movingPointerOffset = null;
-      _showSnack('Start dragging on the stamp to move it');
+      _showSnack('Start dragging on the selected stamp');
       return;
     }
-    _movingPointerOffset = localInPreview - Offset(_stampX, _stampY);
+    _movingPointerOffset = localInPreview - Offset(selected.x, selected.y);
   }
 
   void _handlePreviewPanUpdate(DragUpdateDetails details) {
@@ -670,7 +728,7 @@ class _StampHomePageState extends State<StampHomePage> {
     if (renderBox == null) return;
 
     final localInPreview = renderBox.globalToLocal(details.globalPosition);
-    _repositionStampWithOffset(localInPreview);
+    _repositionSelectedStampWithOffset(localInPreview);
   }
 
   void _handlePreviewPanEnd(DragEndDetails details) {
@@ -681,62 +739,58 @@ class _StampHomePageState extends State<StampHomePage> {
     _movingPointerOffset = null;
   }
 
-  void _repositionStampWithOffset(Offset pos) {
-    final offset = _movingPointerOffset ?? Offset(_stampW / 2, _stampH / 2);
+  void _repositionSelectedStampWithOffset(Offset pos) {
+    final selected = _selectedStamp;
+    if (selected == null) return;
+    final offset = _movingPointerOffset ?? Offset(selected.w / 2, selected.h / 2);
     setState(() {
-      _stampX = (pos.dx - offset.dx).clamp(0.0, 10000.0);
-      _stampY = (pos.dy - offset.dy).clamp(0.0, 10000.0);
-    });
-  }
-
-  void _repositionStampTo(Offset pos) {
-    setState(() {
-      _stampX = (pos.dx - (_stampW / 2)).clamp(0.0, 10000.0);
-      _stampY = (pos.dy - (_stampH / 2)).clamp(0.0, 10000.0);
+      selected.x = (pos.dx - offset.dx).clamp(0.0, 10000.0);
+      selected.y = (pos.dy - offset.dy).clamp(0.0, 10000.0);
     });
   }
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _handleStampTap(TapDownDetails details) {
+  void _handleStampTap() {
+    if (_selectedStamp == null) return;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Stamp Options',
-            style: TextStyle(color: _kTextPrimary)),
+        title: const Text('Stamp Options', style: TextStyle(color: _kTextPrimary)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               leading: const Icon(Icons.open_with, color: _kAccentPrimary),
-              title: const Text('Move',
-                  style: TextStyle(color: _kTextPrimary)),
+              title: const Text('Move', style: TextStyle(color: _kTextPrimary)),
               onTap: () {
                 Navigator.of(ctx).pop();
                 setState(() {
                   _isMovingStamp = true;
-                  _isPasteMode = false;
                 });
-                _showSnack('Drag to reposition stamp');
+                _showSnack('Drag selected stamp to reposition');
               },
             ),
             ListTile(
-              leading:
-                  const Icon(Icons.delete_outline, color: Colors.redAccent),
-              title: const Text('Delete',
-                  style: TextStyle(color: Colors.redAccent)),
+              leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              title: const Text('Delete selected', style: TextStyle(color: Colors.redAccent)),
               onTap: () {
                 Navigator.of(ctx).pop();
+                final idx = _selectedStampIndex;
+                if (idx == null || idx < 0 || idx >= _placedStamps.length) return;
                 setState(() {
-                  _rawStampBytes = null;
-                  _cleanedStampPng = null;
-                  _pendingStampPng = null;
-                  _stampFile = null;
-                  _isPasteMode = false;
+                  _placedStamps.removeAt(idx);
+                  if (_placedStamps.isEmpty) {
+                    _selectedStampIndex = null;
+                    _isMovingStamp = false;
+                  } else {
+                    _selectedStampIndex =
+                        (_placedStamps.length - 1).clamp(0, _placedStamps.length - 1).toInt();
+                    _isMovingStamp = false;
+                  }
                 });
                 _showSnack('Stamp removed');
               },
@@ -751,7 +805,7 @@ class _StampHomePageState extends State<StampHomePage> {
 
   Widget _buildDrawer() {
     final hasAnyStamp = _activePreviewStampPng != null;
-    final canPlaceStamp = _pdfFile != null && hasAnyStamp;
+    final canPlaceStamp = _pdfFile != null && (_selectedStamp != null || _isPasteMode);
 
     return Drawer(
       child: Container(
@@ -825,6 +879,62 @@ class _StampHomePageState extends State<StampHomePage> {
                       ),
                       onTap: _isPasteMode ? null : _pickStampImage,
                     ),
+                    if (_pendingStampPng != null)
+                      ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.add_circle_outline,
+                            color: _kAccentSecond, size: 20),
+                        title: const Text(
+                          'Tap to Stamp (keep on)',
+                          style: TextStyle(color: _kTextPrimary, fontSize: 13),
+                        ),
+                        subtitle: const Text(
+                          'Tap on PDF to add multiple stamps',
+                          style: TextStyle(color: _kTextSecond, fontSize: 11),
+                        ),
+                        trailing: Switch(
+                          value: _isPasteMode,
+                          onChanged: (v) => setState(() {
+                            _isPasteMode = v;
+                            if (!v) _isMovingStamp = false;
+                          }),
+                        ),
+                      ),
+                    if (_placedStamps.isNotEmpty)
+                      ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.layers_outlined,
+                            color: _kAccentPrimary, size: 20),
+                        title: Text(
+                          'Stamps placed: ${_placedStamps.length}',
+                          style: const TextStyle(
+                              color: _kTextPrimary, fontSize: 13),
+                        ),
+                      ),
+                    if (_placedStamps.isNotEmpty)
+                      ...List<Widget>.generate(_placedStamps.length, (i) {
+                        final selected = i == _selectedStampIndex;
+                        return ListTile(
+                          dense: true,
+                          leading: Icon(
+                            selected
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_unchecked,
+                            color: selected ? _kAccentSecond : _kTextSecond,
+                            size: 18,
+                          ),
+                          title: Text(
+                            'Stamp ${i + 1}',
+                            style: TextStyle(
+                              color: selected ? _kAccentSecond : _kTextPrimary,
+                              fontSize: 13,
+                              fontWeight:
+                                  selected ? FontWeight.w700 : FontWeight.w500,
+                            ),
+                          ),
+                          onTap: () => _selectStampByIndex(i),
+                        );
+                      }),
                   ],
                 ),
               ),
@@ -880,7 +990,11 @@ class _StampHomePageState extends State<StampHomePage> {
                       min: 40,
                       max: 380,
                       onChanged: canPlaceStamp
-                          ? (v) => setState(() => _stampW = v)
+                          ? (v) => setState(() {
+                              _stampW = v;
+                              final selected = _selectedStamp;
+                              if (selected != null) selected.w = v;
+                            })
                           : null,
                     ),
                     _LabelledSlider(
@@ -889,7 +1003,11 @@ class _StampHomePageState extends State<StampHomePage> {
                       min: 25,
                       max: 260,
                       onChanged: canPlaceStamp
-                          ? (v) => setState(() => _stampH = v)
+                          ? (v) => setState(() {
+                              _stampH = v;
+                              final selected = _selectedStamp;
+                              if (selected != null) selected.h = v;
+                            })
                           : null,
                     ),
                     _LabelledSlider(
@@ -898,7 +1016,11 @@ class _StampHomePageState extends State<StampHomePage> {
                       min: -180,
                       max: 180,
                       onChanged: canPlaceStamp
-                          ? (v) => setState(() => _rotationDeg = v)
+                          ? (v) => setState(() {
+                              _rotationDeg = v;
+                              final selected = _selectedStamp;
+                              if (selected != null) selected.rotationDeg = v;
+                            })
                           : null,
                     ),
                     _LabelledSlider(
@@ -1124,9 +1246,30 @@ class _StampHomePageState extends State<StampHomePage> {
                   border: Border.all(color: _kAccentSecond),
                 ),
                 child: const Text(
-                  'Tap to Paste',
+                  'Tap to Stamp ON',
                   style: TextStyle(
                     color: _kAccentSecond,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          if (_placedStamps.isNotEmpty)
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(right: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: const Color(0x22FFFFFF),
+                  border: Border.all(color: _kGlassBorder),
+                ),
+                child: Text(
+                  'Stamps ${_placedStamps.length}',
+                  style: const TextStyle(
+                    color: _kTextSecond,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1162,8 +1305,8 @@ class _StampHomePageState extends State<StampHomePage> {
       );
     }
 
-    // When in paste or moving mode, wrap with gesture detector.
-    // When idle, PdfViewPinch handles all gestures (scroll/zoom) directly.
+    // When in paste mode, wrap with tap handler.
+    // Otherwise PdfViewPinch handles all gestures (scroll/zoom) directly.
     final pdfView = PdfViewPinch(
       controller: _pdfController!,
       onPageChanged: (page) => setState(() => _pageNumber = page),
@@ -1172,8 +1315,6 @@ class _StampHomePageState extends State<StampHomePage> {
       },
     );
 
-    // Always keep the same widget tree structure so PdfViewPinch is not
-    // rebuilt (which loses the loaded document). Conditionally wire callbacks.
     final preview = GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTapDown: _isPasteMode ? _handlePreviewTapDown : null,
@@ -1185,31 +1326,50 @@ class _StampHomePageState extends State<StampHomePage> {
       fit: StackFit.expand,
       children: [
         preview,
-        if (_cleanedStampPng != null)
-          Positioned(
-            left: _stampX,
-            top: _stampY,
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTapDown: _isMovingStamp ? null : _handleStampTap,
-              onPanStart: _isMovingStamp ? _handlePreviewPanStart : null,
-              onPanUpdate: _isMovingStamp ? _handlePreviewPanUpdate : null,
-              onPanEnd: _isMovingStamp ? _handlePreviewPanEnd : null,
-              onPanCancel: _isMovingStamp ? _handlePreviewPanCancel : null,
-              child: Transform.rotate(
-                angle: _rotationDeg * 3.1415926535 / 180.0,
-                child: Opacity(
-                  opacity: _isMovingStamp ? 0.65 : 1.0,
-                  child: Image.memory(
-                    _cleanedStampPng!,
-                    width: _stampW,
-                    height: _stampH,
-                  ),
-                ),
+        for (var i = 0; i < _placedStamps.length; i++)
+          _buildPlacedStamp(i, _placedStamps[i]),
+      ],
+    );
+  }
+
+  Widget _buildPlacedStamp(int index, _PlacedStamp stamp) {
+    final selected = index == _selectedStampIndex;
+
+    return Positioned(
+      left: stamp.x,
+      top: stamp.y,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () {
+          _selectStampByIndex(index);
+          if (!_isMovingStamp) {
+            _handleStampTap();
+          }
+        },
+        onPanStart: _isMovingStamp && selected ? _handlePreviewPanStart : null,
+        onPanUpdate: _isMovingStamp && selected ? _handlePreviewPanUpdate : null,
+        onPanEnd: _isMovingStamp && selected ? _handlePreviewPanEnd : null,
+        onPanCancel: _isMovingStamp && selected ? _handlePreviewPanCancel : null,
+        child: Transform.rotate(
+          angle: stamp.rotationDeg * 3.1415926535 / 180.0,
+          child: Opacity(
+            opacity: _isMovingStamp && selected ? 0.65 : 1.0,
+            child: Container(
+              decoration: selected
+                  ? BoxDecoration(
+                      border: Border.all(color: _kAccentSecond, width: 1.2),
+                      borderRadius: BorderRadius.circular(4),
+                    )
+                  : null,
+              child: Image.memory(
+                stamp.png,
+                width: stamp.w,
+                height: stamp.h,
               ),
             ),
           ),
-      ],
+        ),
+      ),
     );
   }
 }
