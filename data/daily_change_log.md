@@ -239,6 +239,17 @@
 - Validation: `flutter analyze` run locally; 8 pre-existing warnings/info-level issues, no new analyzer errors.
 
 ## 2026-05-30 SGT
+- Fixed stamp resolution issue when PDF files are used as stamps in `lib/main.dart`.
+- Problem: PDF stamps were rasterized at max 1024px for preview, and this low-res PNG was also used at export time, causing blurry stamps on A4 pages.
+- Added `_stampSourcePdfBytes` field to retain original PDF bytes when a PDF is picked as a stamp source.
+- In `_pickStampImage()`, raw PDF bytes are now stored alongside the 1024px preview raster.
+- Added `_renderStampPdfForExport()` method that re-renders the stamp PDF at 3× the target PDF-point size (≈216 DPI equivalent) for crisp output, clamped to 100–8192px.
+- In `_exportStampedPdf()`, each placed stamp is now re-rendered at high resolution per-stamp using its actual export dimensions, falling back to the preview PNG for non-PDF stamps.
+- Preview flow remains unchanged (1024px is fine for on-screen display).
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: `flutter analyze` run locally; 8 pre-existing warnings/info-level issues, no new analyzer errors.
+
+## 2026-05-30 SGT
 - Fixed `_exportStampedPdf()` coordinate mapping in `lib/main.dart` to use contain-fit logic matching `PdfViewPinch` rendering.
 - Previous approach used independent X/Y scale factors for position and `min(scaleX, scaleY)` for size, which placed stamps incorrectly when page aspect ratio differed from preview widget aspect ratio (letterboxing offset was ignored).
 - New approach computes the rendered page sub-rect within the preview (contain-fit: fit by width or height with centered offset), then applies a single uniform scale factor for both position and size mapping from rendered-page coordinates to PDF points.

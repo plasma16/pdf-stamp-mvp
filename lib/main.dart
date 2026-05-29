@@ -246,6 +246,7 @@ class _StampHomePageState extends State<StampHomePage> {
   File? _pdfFile;
   File? _stampFile;
   Uint8List? _rawStampBytes;
+  Uint8List? _stampSourcePdfBytes; // Original PDF bytes when stamp is a PDF
   Uint8List? _pendingStampPng; // held until user taps to place
   final List<_PlacedStamp> _placedStamps = [];
   int? _selectedStampIndex;
@@ -383,8 +384,14 @@ class _StampHomePageState extends State<StampHomePage> {
     if (result == null) return;
 
     final selected = result.files.single;
+    final ext = p.extension(selected.name).toLowerCase();
+    final rawFileBytes = selected.bytes ??
+        (selected.path == null ? null : await File(selected.path!).readAsBytes());
     final bytes = await _readStampSourceBytes(selected);
     if (bytes == null) return;
+    _stampSourcePdfBytes = (ext == '.pdf' && rawFileBytes != null)
+        ? Uint8List.fromList(rawFileBytes)
+        : null;
 
     final sourceDimensions = _decodeImageDimensions(bytes);
 
@@ -457,6 +464,48 @@ class _StampHomePageState extends State<StampHomePage> {
       }
     } catch (e) {
       _showSnack('Failed to load stamp PDF: $e');
+      return null;
+    }
+  }
+
+  /// Re-renders a stamp PDF at the target export size for high-res output.
+  Future<Uint8List?> _renderStampPdfForExport(
+    Uint8List pdfBytes,
+    double targetW,
+    double targetH,
+  ) async {
+    try {
+      final pdf = await PdfDocument.openData(pdfBytes);
+      try {
+        if (pdf.pagesCount < 1) return null;
+        final page = await pdf.getPage(1);
+        try {
+          // Render at 3x the target PDF-point size for crisp output
+          // (PDF points are 72 DPI; 3x gives ~216 DPI equivalent).
+          const renderScale = 3.0;
+          final renderW = (targetW * renderScale).clamp(100.0, 8192.0);
+          final renderH = (targetH * renderScale).clamp(100.0, 8192.0);
+
+          final rendered = await page.render(
+            width: renderW.roundToDouble(),
+            height: renderH.roundToDouble(),
+            format: PdfPageImageFormat.png,
+            backgroundColor: '#FFFFFF',
+          );
+          if (rendered == null || rendered.bytes.isEmpty) return null;
+
+          // Apply the same white-transparent cleanup
+          return _makeWhiteTransparent(
+            rendered.bytes,
+            aggressiveness: _aggressiveness,
+          );
+        } finally {
+          await page.close();
+        }
+      } finally {
+        await pdf.close();
+      }
+    } catch (e) {
       return null;
     }
   }
@@ -708,13 +757,23 @@ class _StampHomePageState extends State<StampHomePage> {
         final pdfW = stamp.w * pdfScale;
         final pdfH = stamp.h * pdfScale;
 
+        // Use high-res re-render for PDF-sourced stamps.
+        Uint8List stampPng = stamp.png;
+        if (_stampSourcePdfBytes != null) {
+          stampPng = await _renderStampPdfForExport(
+            _stampSourcePdfBytes!,
+            pdfW,
+            pdfH,
+          ) ?? stamp.png;
+        }
+
         final state = page.graphics.save();
         page.graphics.translateTransform(pdfX + (pdfW / 2), pdfY + (pdfH / 2));
         page.graphics.rotateTransform(stamp.rotationDeg);
         page.graphics.translateTransform(-(pdfW / 2), -(pdfH / 2));
         page.graphics.setTransparency(1.0);
         page.graphics.drawImage(
-          sfpdf.PdfBitmap(stamp.png),
+          sfpdf.PdfBitmap(stampPng),
           Rect.fromLTWH(0, 0, pdfW, pdfH),
         );
         page.graphics.restore(state);
