@@ -340,6 +340,10 @@ class _StampHomePageState extends State<StampHomePage> {
     // Dynamic near-white thresholding based on border sampling.
     // Aggressiveness (0..100) controls how much borderline pixels are cleared.
     final borderSamples = <int>[];
+    var borderRSum = 0;
+    var borderGSum = 0;
+    var borderBSum = 0;
+    var borderCount = 0;
     final maxX = out.width - 1;
     final maxY = out.height - 1;
     final aggr = (aggressiveness / 100).clamp(0.0, 1.0);
@@ -350,6 +354,10 @@ class _StampHomePageState extends State<StampHomePage> {
       final g = px.g.toInt();
       final b = px.b.toInt();
       borderSamples.add(((r + g + b) / 3).round());
+      borderRSum += r;
+      borderGSum += g;
+      borderBSum += b;
+      borderCount++;
     }
 
     for (var x = 0; x < out.width; x++) {
@@ -366,13 +374,26 @@ class _StampHomePageState extends State<StampHomePage> {
         (borderSamples.length * 0.9).floor().clamp(0, borderSamples.length - 1);
     final borderBrightP90 = borderSamples[p90Index];
 
+    final borderR = (borderRSum / borderCount).toDouble();
+    final borderG = (borderGSum / borderCount).toDouble();
+    final borderB = (borderBSum / borderCount).toDouble();
+
     final hardWhiteThreshold =
-        (borderBrightP90 + (aggr * 18.0) - 10.0).round().clamp(205, 252);
-    final softWindow = (36 - (aggr * 16.0)).round().clamp(14, 40);
-    final softWhiteThreshold = (hardWhiteThreshold - softWindow).clamp(170, 240);
-    final hardSpreadThreshold = (26 + aggr * 12.0).round();
-    final softSpreadThreshold = (hardSpreadThreshold + 8).clamp(20, 48);
-    final softFadeMax = (0.70 + aggr * 0.28).clamp(0.70, 0.98);
+        (borderBrightP90 + (aggr * 40.0) - 8.0).round().clamp(180, 255);
+    final softWindow = (44 - (aggr * 26.0)).round().clamp(10, 52);
+    final softWhiteThreshold = (hardWhiteThreshold - softWindow).clamp(140, 246);
+    final hardSpreadThreshold = (24 + aggr * 42.0).round().clamp(18, 72);
+    final softSpreadThreshold = (hardSpreadThreshold + 16).clamp(28, 92);
+    final softFadeMax = (0.72 + aggr * 0.27).clamp(0.72, 0.99);
+
+    // At very high aggressiveness, also remove pixels close to sampled border color
+    // (helps gray/beige scan backgrounds that aren't near pure white).
+    final useBorderDistanceMode = aggr >= 0.70;
+    final borderDistanceThreshold = (18.0 + (aggr - 0.70).clamp(0.0, 0.30) * 180.0)
+        .clamp(18.0, 72.0);
+    final borderDistanceSoftThreshold =
+        (borderDistanceThreshold + 14.0).clamp(26.0, 92.0);
+    final borderDistanceFadeMax = (0.65 + aggr * 0.30).clamp(0.65, 0.98);
 
     for (var y = 0; y < out.height; y++) {
       for (var x = 0; x < out.width; x++) {
@@ -389,16 +410,35 @@ class _StampHomePageState extends State<StampHomePage> {
 
         int outAlpha = a;
 
+        final borderDistance = ((r - borderR).abs() +
+                (g - borderG).abs() +
+                (b - borderB).abs()) /
+            3.0;
+
         // Hard remove neutral near-white background.
         if (brightness >= hardWhiteThreshold && spread <= hardSpreadThreshold) {
           outAlpha = 0;
         }
         // Soft fade for lighter neutral pixels to avoid harsh edge halos.
-        else if (brightness >= softWhiteThreshold && spread <= softSpreadThreshold) {
+        else if (brightness >= softWhiteThreshold &&
+            spread <= softSpreadThreshold) {
           final t = ((brightness - softWhiteThreshold) /
                   (hardWhiteThreshold - softWhiteThreshold).clamp(1, 255))
               .clamp(0.0, 1.0);
           outAlpha = (a * (1.0 - t * softFadeMax)).round();
+        }
+
+        // Extra mode for non-white paper backgrounds at high aggressiveness.
+        if (useBorderDistanceMode && outAlpha > 0) {
+          if (borderDistance <= borderDistanceThreshold) {
+            outAlpha = 0;
+          } else if (borderDistance <= borderDistanceSoftThreshold) {
+            final dt = ((borderDistanceSoftThreshold - borderDistance) /
+                    (borderDistanceSoftThreshold - borderDistanceThreshold)
+                        .clamp(1.0, 255.0))
+                .clamp(0.0, 1.0);
+            outAlpha = (outAlpha * (1.0 - dt * borderDistanceFadeMax)).round();
+          }
         }
 
         out.setPixelRgba(x, y, r, g, b, outAlpha.clamp(0, 255));

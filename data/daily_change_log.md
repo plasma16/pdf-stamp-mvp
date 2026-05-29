@@ -189,6 +189,15 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: `flutter analyze` executed locally (same 9 pre-existing warnings/info-level issues; no new errors).
 
+## 2026-05-29 22:15 SGT
+- Strengthened background remover aggressiveness in `lib/main.dart`:
+  - widened threshold scaling for near-white removal at high aggressiveness,
+  - added border-color distance mode for gray/beige scan backgrounds when aggressiveness is high,
+  - kept soft-fade transition to reduce halo edges.
+- This makes `Clean=100` materially more aggressive against opaque paper backgrounds.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: `flutter analyze` executed locally (same 9 warnings/info-level issues; no new errors).
+
 ## 2026-05-29 21:51 SGT
 - Ran Flutter validation in `/home/linuxuser/pdf-stamp-mvp`: `flutter pub get` completed successfully and `flutter analyze` completed with 9 pre-existing issues (warnings/info) in `lib/main.dart`, no new code changes required for this task.
 - Appended this log entry with current SGT timestamp.
