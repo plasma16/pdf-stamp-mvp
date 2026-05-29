@@ -311,7 +311,6 @@ class _StampHomePageState extends State<StampHomePage> {
 
   void _handlePdfTap(TapDownDetails details) {
     setState(() {
-      _tapPosition = details.localPosition;
       // If we tap on the stamp, enter move mode
       if (_cleanedStampPng != null) {
         final stampRect = Rect.fromLTWH(_stampX, _stampY, _stampW, _stampH);
@@ -418,11 +417,10 @@ class _StampHomePageState extends State<StampHomePage> {
                   height: MediaQuery.of(context).size.height * 0.55,
                   child: Stack(
                     children: [
-Scrollbar(
-  thumbVisibility: true,
-  interactive: true,
-  child:
-                        PdfViewPinch(
+                      Scrollbar(
+                        thumbVisibility: true,
+                        interactive: true,
+                        child: PdfViewPinch(
                           controller: _pdfController!,
                           onPageChanged: (page) {
                             setState(() {
@@ -436,21 +434,35 @@ Scrollbar(
                               _endPageCtl.text = '$_pageNumber';
                             });
                           },
-    onTapDown: (details) => _handlePdfTap(details),
                         ),
-)
+                      ),
                       if (_cleanedStampPng != null)
                         Positioned(
                           left: _stampX,
                           top: _stampY,
-                            child: GestureDetector(                              onPanUpdate: (d) {                                if (_isMovingStamp) {                                  setState(() {                                    _stampX = (_stampX + d.delta.dx).clamp(0.0, 10000.0);                                    _stampY = (_stampY + d.delta.dy).clamp(0.0, 10000.0);                                  });                                }                              },                              onTapDown: (details) => _handleStampTap(details),                              child: Transform.rotate(                                angle: _rotationDeg * 3.1415926535 / 180.0,                                Opacity(
-          opacity: _isMovingStamp ? 0.7 : 1.0,
-          child: Image.memory(
-            _cleanedStampPng!,
-            width: _stampW,
-            height: _stampH,
-          ),
-        ),                              ),                            ),                        ),
+                          child: GestureDetector(
+                            onPanUpdate: (d) {
+                              if (_isMovingStamp) {
+                                setState(() {
+                                  _stampX = (_stampX + d.delta.dx).clamp(0.0, 10000.0);
+                                  _stampY = (_stampY + d.delta.dy).clamp(0.0, 10000.0);
+                                });
+                              }
+                            },
+                            onTapDown: (details) => _handleStampTap(details),
+                            child: Transform.rotate(
+                              angle: _rotationDeg * 3.1415926535 / 180.0,
+                              child: Opacity(
+                                opacity: _isMovingStamp ? 0.7 : 1.0,
+                                child: Image.memory(
+                                  _cleanedStampPng!,
+                                  width: _stampW,
+                                  height: _stampH,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 )

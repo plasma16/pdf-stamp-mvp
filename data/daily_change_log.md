@@ -91,3 +91,9 @@
   * Enhanced user interaction with clear feedback
 - Updated lib/main.dart with _handlePdfTap and _handleStampTap methods
 
+## 2026-05-29 19:08 SGT
+- Fixed APK build failure from GitHub Actions run 26350203189 by repairing Dart syntax/type issues in `lib/main.dart` introduced in commit `841ddd7`.
+- Removed invalid `_tapPosition` assignment (field not defined), removed unsupported `onTapDown` parameter from `PdfViewPinch`, and corrected malformed widget tree around `Scrollbar`/`GestureDetector`/`Transform.rotate` so the file parses and compiles.
+- Changed files: `lib/main.dart`.
+- Validation: root cause confirmed from Actions logs (`lib/main.dart` compile errors at lines 314/439/442/446); local Flutter build not executed because Flutter SDK is unavailable in this environment (`flutter: command not found`).
+
