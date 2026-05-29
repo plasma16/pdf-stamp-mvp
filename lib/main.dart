@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:pdfx/pdfx.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sfpdf;
 
@@ -27,6 +28,8 @@ const _kTextPrimary   = Color(0xFFF0F0FF);
 const _kTextSecond    = Color(0xAAC8C8E8);
 const _kAggressivenessPrefKey = 'stamp_bg_aggressiveness';
 const _kDefaultAggressiveness = 55.0;
+const _kCachedStampPathKey = 'cached_stamp_path';
+const _kCachedStampIsPdfKey = 'cached_stamp_is_pdf';
 
 // ── App entry ─────────────────────────────────────────────────────────────────
 void main() {
@@ -317,11 +320,103 @@ class _StampHomePageState extends State<StampHomePage> {
         _aggressiveness = savedAggressiveness.clamp(0.0, 100.0).toDouble();
       }
     });
+
+    await _loadCachedStamp();
   }
 
   Future<void> _saveAggressiveness(double value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_kAggressivenessPrefKey, value);
+  }
+
+  Future<void> _cacheStampBytes(Uint8List bytes, {required bool isPdf}) async {
+    try {
+      final dir = await getApplicationSupportDirectory();
+      final ext = isPdf ? '.pdf' : '.png';
+      final cacheFile = File(p.join(dir.path, 'cached_stamp$ext'));
+      await cacheFile.writeAsBytes(bytes, flush: true);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kCachedStampPathKey, cacheFile.path);
+      await prefs.setBool(_kCachedStampIsPdfKey, isPdf);
+    } catch (_) {
+      // Silent fail — caching is best-effort
+    }
+  }
+
+  Future<void> _loadCachedStamp() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedPath = prefs.getString(_kCachedStampPathKey);
+      if (cachedPath == null) return;
+
+      final cachedFile = File(cachedPath);
+      if (!await cachedFile.exists()) {
+        // Cache file gone — clear prefs
+        await prefs.remove(_kCachedStampPathKey);
+        await prefs.remove(_kCachedStampIsPdfKey);
+        return;
+      }
+
+      final isPdf = prefs.getBool(_kCachedStampIsPdfKey) ?? false;
+      final fileBytes = await cachedFile.readAsBytes();
+
+      // For PDF stamps, rasterize for preview (same as _readStampSourceBytes)
+      Uint8List rasterBytes;
+      if (isPdf) {
+        final pdf = await PdfDocument.openData(fileBytes);
+        try {
+          if (pdf.pagesCount < 1) return;
+          final page = await pdf.getPage(1);
+          try {
+            final longestSide = page.width > page.height ? page.width : page.height;
+            final scale = (1024.0 / longestSide).clamp(0.25, 1.0);
+            final rendered = await page.render(
+              width: (page.width * scale).roundToDouble(),
+              height: (page.height * scale).roundToDouble(),
+              format: PdfPageImageFormat.png,
+              backgroundColor: '#FFFFFF',
+            );
+            if (rendered == null || rendered.bytes.isEmpty) return;
+            rasterBytes = rendered.bytes;
+          } finally {
+            await page.close();
+          }
+        } finally {
+          await pdf.close();
+        }
+        _stampSourcePdfBytes = Uint8List.fromList(fileBytes);
+      } else {
+        rasterBytes = fileBytes;
+        _stampSourcePdfBytes = null;
+      }
+
+      final sourceDimensions = _decodeImageDimensions(rasterBytes);
+      _rawStampBytes = Uint8List.fromList(rasterBytes);
+      final cleaned = _makeWhiteTransparent(
+        _rawStampBytes!,
+        aggressiveness: _aggressiveness,
+      );
+      if (cleaned == null) return;
+
+      if (!mounted) return;
+      setState(() {
+        _stampFile = cachedFile;
+        _pendingStampPng = cleaned;
+        final cleanedDimensions = _decodeImageDimensions(cleaned);
+        final dimensions = sourceDimensions ?? cleanedDimensions;
+        if (dimensions != null) {
+          _pendingStampBaseW = dimensions.width;
+          _pendingStampBaseH = dimensions.height;
+          _pendingStampScale =
+              (140 / _pendingStampBaseW).clamp(_minStampScale, _maxStampScale);
+        }
+        // Don't auto-enable paste mode on load — just have the stamp ready
+        _isPasteMode = false;
+        _isMovingStamp = false;
+      });
+    } catch (_) {
+      // Silent fail
+    }
   }
 
   void _updateAggressiveness(double value) {
@@ -419,6 +514,11 @@ class _StampHomePageState extends State<StampHomePage> {
       _isPasteMode = true;
       _isMovingStamp = false;
     });
+    // Cache the stamp for next launch
+    unawaited(_cacheStampBytes(
+      rawFileBytes ?? bytes,
+      isPdf: ext == '.pdf',
+    ));
     Navigator.of(context).pop(); // close drawer
     _showSnack('Tap on PDF to paste stamp');
   }
@@ -827,12 +927,6 @@ class _StampHomePageState extends State<StampHomePage> {
   }
 
   String _displaySavedPath(File source, File outFile) {
-    final sourcePath = source.path;
-    final isAppCachePath = sourcePath.contains('/cache/') ||
-        sourcePath.contains('/Android/data/');
-    if (Platform.isAndroid && isAppCachePath) {
-      return '${outFile.path} (saved to Downloads because Android picker returned cache path)';
-    }
     return outFile.path;
   }
 

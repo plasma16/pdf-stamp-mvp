@@ -257,6 +257,15 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: `flutter analyze` run locally; 8 pre-existing warnings/info-level issues, no new analyzer errors.
 
+## 2026-05-30 SGT
+- Added stamp caching in `lib/main.dart`: selected stamp bytes + metadata are saved to app support directory via `path_provider` and auto-loaded on next launch through the same cleanup pipeline.
+- New methods: `_cacheStampBytes()` writes stamp to `<appSupportDir>/cached_stamp.<ext>` with SharedPreferences metadata; `_loadCachedStamp()` restores cached stamp on init (handles PDF rasterization, background removal, dimension decoding).
+- Cache save is triggered after successful stamp pick in `_pickStampImage()`; cache load runs at end of `_loadStampSettings()`.
+- Simplified `_displaySavedPath()` to always return the output file path (removed Android cache-path parenthetical message).
+- Added `path_provider: ^2.1.4` dependency in `pubspec.yaml`.
+- Changed files: `lib/main.dart`, `pubspec.yaml`, `data/daily_change_log.md`.
+- Validation: `flutter pub get` succeeded; `flutter analyze` reports 8 pre-existing warnings/info-level issues, no new errors.
+
 ## 2026-05-29 23:09 SGT
 - Updated stamp picker in `lib/main.dart` to accept PDF in addition to image files (`png`, `jpg`, `jpeg`, `pdf`).
 - Added `_readStampSourceBytes(PlatformFile)` to preserve existing image behavior and add PDF behavior: when a stamp PDF is selected, render page 1 to PNG (`PdfDocument.openData` + `page.render(...)`) before passing through existing background-cleaning and placement pipeline.
