@@ -145,3 +145,11 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: static review only; Flutter SDK unavailable.
 
+## 2026-05-29 21:29 SGT
+- Tightened move-stamp interaction in `lib/main.dart`: drag now starts only when touch begins on the stamp; background drag no longer repositions the stamp (prevents accidental PDF-scroll vs move conflicts).
+- Added move hint snackbar when drag starts outside the stamp in move mode.
+- Fixed output path handling when Android file picker returns app-cache paths: exports now prefer `/storage/emulated/0/Download` fallback instead of app cache, with snackbar note explaining fallback.
+- Updated save confirmation messages to display resolved output path via `_displaySavedPath(...)`.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: static code review and targeted diff checks only; Flutter SDK unavailable in this environment.
+

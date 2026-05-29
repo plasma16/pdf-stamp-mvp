@@ -353,7 +353,7 @@ class _StampHomePageState extends State<StampHomePage> {
           suffix: '_${p.basenameWithoutExtension(file2.path)}_combined',
         );
         await outFile.writeAsBytes(outBytes, flush: true);
-        _showSnack('Saved: ${outFile.path}');
+        _showSnack('Saved: ${_displaySavedPath(file1, outFile)}');
       } finally {
         outDoc.dispose();
       }
@@ -402,7 +402,7 @@ class _StampHomePageState extends State<StampHomePage> {
 
       final outFile = _buildUniqueSiblingFile(_pdfFile!, suffix: '_stamped');
       await outFile.writeAsBytes(outputBytes, flush: true);
-      _showSnack('Saved: ${outFile.path}');
+      _showSnack('Saved: ${_displaySavedPath(_pdfFile!, outFile)}');
     } catch (e) {
       _showSnack('Failed to export: $e');
     } finally {
@@ -415,7 +415,7 @@ class _StampHomePageState extends State<StampHomePage> {
     required String suffix,
     String extension = '.pdf',
   }) {
-    final dir = source.parent;
+    final dir = _preferredOutputDir(source);
     final base = p.basenameWithoutExtension(source.path);
     final preferred = File(p.join(dir.path, '$base$suffix$extension'));
     if (!preferred.existsSync()) return preferred;
@@ -427,6 +427,31 @@ class _StampHomePageState extends State<StampHomePage> {
       if (!candidate.existsSync()) return candidate;
       index++;
     }
+  }
+
+  Directory _preferredOutputDir(File source) {
+    final sourcePath = source.path;
+    final isAppCachePath = sourcePath.contains('/cache/') ||
+        sourcePath.contains('/Android/data/');
+
+    if (Platform.isAndroid && isAppCachePath) {
+      final downloadsDir = Directory('/storage/emulated/0/Download');
+      if (downloadsDir.existsSync()) {
+        return downloadsDir;
+      }
+    }
+
+    return source.parent;
+  }
+
+  String _displaySavedPath(File source, File outFile) {
+    final sourcePath = source.path;
+    final isAppCachePath = sourcePath.contains('/cache/') ||
+        sourcePath.contains('/Android/data/');
+    if (Platform.isAndroid && isAppCachePath) {
+      return '${outFile.path} (saved to Downloads because Android picker returned cache path)';
+    }
+    return outFile.path;
   }
 
   // ── Gesture handlers ────────────────────────────────────────────────────────
@@ -446,16 +471,16 @@ class _StampHomePageState extends State<StampHomePage> {
   void _handlePreviewPanStart(DragStartDetails details) {
     if (!_isMovingStamp) return;
     final pos = details.localPosition;
-    if (_isPointOnStamp(pos)) {
-      _movingPointerOffset = pos - Offset(_stampX, _stampY);
-    } else {
-      _movingPointerOffset = const Offset(0, 0);
-      _repositionStampWithOffset(pos);
+    if (!_isPointOnStamp(pos)) {
+      _movingPointerOffset = null;
+      _showSnack('Start dragging on the stamp to move it');
+      return;
     }
+    _movingPointerOffset = pos - Offset(_stampX, _stampY);
   }
 
   void _handlePreviewPanUpdate(DragUpdateDetails details) {
-    if (!_isMovingStamp) return;
+    if (!_isMovingStamp || _movingPointerOffset == null) return;
     _repositionStampWithOffset(details.localPosition);
   }
 
