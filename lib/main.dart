@@ -378,9 +378,12 @@ class _StampHomePageState extends State<StampHomePage> {
   Widget build(BuildContext context) {
     final canPlaceStamp = _pdfFile != null && _cleanedStampPng != null;
     final mediaQuery = MediaQuery.of(context);
+    final bottomSystemInset = mediaQuery.padding.bottom > mediaQuery.viewPadding.bottom
+        ? mediaQuery.padding.bottom
+        : mediaQuery.viewPadding.bottom;
     final safeBodyHeight = mediaQuery.size.height -
         mediaQuery.padding.top -
-        mediaQuery.padding.bottom -
+        bottomSystemInset -
         kToolbarHeight;
     final previewHeight = (safeBodyHeight * 0.55).clamp(200.0, 700.0).toDouble();
 

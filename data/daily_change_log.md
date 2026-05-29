@@ -110,3 +110,9 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: `git diff --stat` confirms only intended tracked files changed; local Flutter runtime/build not executed in this environment because Flutter SDK is unavailable.
 
+## 2026-05-29 19:44 SGT
+- Updated `lib/main.dart` preview sizing to explicitly account for Android bottom navigation/system bar inset using the larger of `MediaQuery.padding.bottom` and `MediaQuery.viewPadding.bottom`.
+- This ensures preview height calculation reserves bottom system UI space consistently across gesture/navigation modes.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: local Flutter run/analyze not executed because Flutter SDK is unavailable in this environment (`flutter: command not found`).
+
