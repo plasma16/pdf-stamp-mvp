@@ -377,13 +377,15 @@ class _StampHomePageState extends State<StampHomePage> {
   Future<void> _pickStampImage() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg'],
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'pdf'],
       withData: true,
     );
     if (result == null) return;
 
-    final bytes = result.files.single.bytes ??
-        await File(result.files.single.path!).readAsBytes();
+    final selected = result.files.single;
+    final bytes = await _readStampSourceBytes(selected);
+    if (bytes == null) return;
+
     final sourceDimensions = _decodeImageDimensions(bytes);
 
     _rawStampBytes = Uint8List.fromList(bytes);
@@ -397,9 +399,7 @@ class _StampHomePageState extends State<StampHomePage> {
     }
 
     setState(() {
-      _stampFile = result.files.single.path == null
-          ? null
-          : File(result.files.single.path!);
+      _stampFile = selected.path == null ? null : File(selected.path!);
       _pendingStampPng = cleaned;
       final cleanedDimensions = _decodeImageDimensions(cleaned);
       final dimensions = sourceDimensions ?? cleanedDimensions;
@@ -414,6 +414,51 @@ class _StampHomePageState extends State<StampHomePage> {
     });
     Navigator.of(context).pop(); // close drawer
     _showSnack('Tap on PDF to paste stamp');
+  }
+
+  Future<Uint8List?> _readStampSourceBytes(PlatformFile selected) async {
+    final ext = p.extension(selected.name).toLowerCase();
+    final rawBytes = selected.bytes ??
+        (selected.path == null ? null : await File(selected.path!).readAsBytes());
+    if (rawBytes == null) return null;
+
+    if (ext != '.pdf') {
+      return Uint8List.fromList(rawBytes);
+    }
+
+    try {
+      final pdf = await PdfDocument.openData(rawBytes);
+      try {
+        if (pdf.pagesCount < 1) {
+          _showSnack('Selected stamp PDF has no pages.');
+          return null;
+        }
+
+        final page = await pdf.getPage(1);
+        try {
+          final longestSide = page.width > page.height ? page.width : page.height;
+          final scale = (1024.0 / longestSide).clamp(0.25, 1.0);
+          final rendered = await page.render(
+            width: (page.width * scale).roundToDouble(),
+            height: (page.height * scale).roundToDouble(),
+            format: PdfPageImageFormat.png,
+            backgroundColor: '#FFFFFF',
+          );
+          if (rendered == null || rendered.bytes.isEmpty) {
+            _showSnack('Could not render first page from stamp PDF.');
+            return null;
+          }
+          return rendered.bytes;
+        } finally {
+          await page.close();
+        }
+      } finally {
+        await pdf.close();
+      }
+    } catch (e) {
+      _showSnack('Failed to load stamp PDF: $e');
+      return null;
+    }
   }
 
   _ImageDimensions? _decodeImageDimensions(Uint8List bytes) {

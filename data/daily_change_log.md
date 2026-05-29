@@ -230,3 +230,11 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: `flutter analyze` run locally; 9 pre-existing warnings/info-level issues remain (no new analyzer errors).
 
+## 2026-05-29 23:09 SGT
+- Updated stamp picker in `lib/main.dart` to accept PDF in addition to image files (`png`, `jpg`, `jpeg`, `pdf`).
+- Added `_readStampSourceBytes(PlatformFile)` to preserve existing image behavior and add PDF behavior: when a stamp PDF is selected, render page 1 to PNG (`PdfDocument.openData` + `page.render(...)`) before passing through existing background-cleaning and placement pipeline.
+- Added graceful failure snackbars for unsupported/invalid stamp PDFs (empty PDF, render failure, or load exception).
+- Kept existing multi-stamp, persistent tap-to-stamp, and single `Size` slider behavior unchanged.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: ran `flutter analyze`; completed with the same 9 pre-existing warnings/info-level issues and no new analyzer errors.
+
