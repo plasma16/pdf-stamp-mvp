@@ -47,14 +47,6 @@ class PdfStampMvpApp extends StatelessWidget {
           inactiveTrackColor: Color(0x44FFFFFF),
           overlayColor: Color(0x337B61FF),
         ),
-        switchTheme: SwitchThemeData(
-          thumbColor: WidgetStateProperty.all(_kAccentPrimary),
-          trackColor: WidgetStateProperty.resolveWith(
-            (s) => s.contains(WidgetState.selected)
-                ? _kAccentPrimary.withOpacity(0.5)
-                : const Color(0x44FFFFFF),
-          ),
-        ),
         inputDecorationTheme: InputDecorationTheme(
           labelStyle: const TextStyle(color: _kTextSecond),
           enabledBorder: OutlineInputBorder(
@@ -64,10 +56,6 @@ class PdfStampMvpApp extends StatelessWidget {
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: _kAccentPrimary, width: 1.5),
-          ),
-          disabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Color(0x22FFFFFF)),
           ),
           filled: true,
           fillColor: const Color(0x15FFFFFF),
@@ -81,6 +69,9 @@ class PdfStampMvpApp extends StatelessWidget {
         dialogTheme: DialogThemeData(
           backgroundColor: const Color(0xFF1E1B3A),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+        drawerTheme: const DrawerThemeData(
+          backgroundColor: Color(0xFF1A1640),
         ),
       ),
       home: const StampHomePage(),
@@ -129,127 +120,6 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
-// ── Glass action button ───────────────────────────────────────────────────────
-class _GlassButton extends StatelessWidget {
-  const _GlassButton({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-    this.primary = false,
-    this.loading = false,
-  });
-  final String label;
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final bool primary;
-  final bool loading;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: AnimatedOpacity(
-        opacity: onPressed == null ? 0.45 : 1.0,
-        duration: const Duration(milliseconds: 200),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: primary ? _kAccentPrimary.withOpacity(0.7) : _kGlassBorder,
-            ),
-            gradient: primary
-                ? const LinearGradient(
-                    colors: [Color(0xFF7B61FF), Color(0xFF00D2FF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : const LinearGradient(
-                    colors: [Color(0x2BFFFFFF), Color(0x10FFFFFF)],
-                  ),
-            boxShadow: primary
-                ? [
-                    BoxShadow(
-                      color: _kAccentPrimary.withOpacity(0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    )
-                  ]
-                : [],
-          ),
-          child: loading
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon, size: 16, color: Colors.white),
-                    const SizedBox(width: 6),
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ],
-                ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Label chip ────────────────────────────────────────────────────────────────
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        color: const Color(0x18FFFFFF),
-        border: Border.all(color: const Color(0x30FFFFFF)),
-      ),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '$label  ',
-              style: const TextStyle(
-                color: _kTextSecond,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            TextSpan(
-              text: value,
-              style: const TextStyle(
-                color: _kTextPrimary,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-}
-
 // ── Slider row ────────────────────────────────────────────────────────────────
 class _LabelledSlider extends StatelessWidget {
   const _LabelledSlider({
@@ -270,7 +140,7 @@ class _LabelledSlider extends StatelessWidget {
     return Row(
       children: [
         SizedBox(
-          width: 68,
+          width: 60,
           child: Text(
             label,
             style: const TextStyle(
@@ -289,7 +159,7 @@ class _LabelledSlider extends StatelessWidget {
           ),
         ),
         SizedBox(
-          width: 38,
+          width: 34,
           child: Text(
             value.toStringAsFixed(0),
             style: const TextStyle(color: _kTextSecond, fontSize: 11),
@@ -334,7 +204,7 @@ class _StampHomePageState extends State<StampHomePage> {
   Offset? _movingPointerOffset;
 
   Rect get _stampBounds => Rect.fromLTWH(_stampX, _stampY, _stampW, _stampH);
-  bool _isPointOnStamp(Offset localPosition) => _stampBounds.contains(localPosition);
+  bool _isPointOnStamp(Offset pos) => _stampBounds.contains(pos);
 
   @override
   void dispose() {
@@ -386,11 +256,14 @@ class _StampHomePageState extends State<StampHomePage> {
     }
 
     setState(() {
-      _stampFile  = result.files.single.path == null ? null : File(result.files.single.path!);
+      _stampFile = result.files.single.path == null
+          ? null
+          : File(result.files.single.path!);
       _cleanedStampPng = cleaned;
       _isPasteMode = true;
       _isMovingStamp = false;
     });
+    Navigator.of(context).pop(); // close drawer
     _showSnack('Tap on PDF to paste stamp');
   }
 
@@ -497,21 +370,16 @@ class _StampHomePageState extends State<StampHomePage> {
     }
     setState(() => _isExporting = true);
     try {
-      final pdfBytes  = await _pdfFile!.readAsBytes();
-      final document  = sfpdf.PdfDocument(inputBytes: pdfBytes);
-      final pageIndexes = _buildPageIndexes(document.pages.count);
-      if (pageIndexes.isEmpty) {
-        document.dispose();
-        _showSnack('No valid pages selected.');
-        return;
-      }
+      final pdfBytes = await _pdfFile!.readAsBytes();
+      final document = sfpdf.PdfDocument(inputBytes: pdfBytes);
+      final totalPages = document.pages.count;
 
-      for (final idx in pageIndexes) {
-        final page     = document.pages[idx];
+      for (int idx = 0; idx < totalPages; idx++) {
+        final page = document.pages[idx];
         final pageSize = page.size;
-        final previewW = MediaQuery.of(context).size.width - 32;
-        final previewH = (MediaQuery.of(context).size.height * 0.55).clamp(1, 2000).toDouble();
-        final scaleX = pageSize.width  / previewW;
+        final previewW = MediaQuery.of(context).size.width;
+        final previewH = MediaQuery.of(context).size.height;
+        final scaleX = pageSize.width / previewW;
         final scaleY = pageSize.height / previewH;
 
         final x = _stampX * scaleX;
@@ -523,17 +391,15 @@ class _StampHomePageState extends State<StampHomePage> {
         page.graphics.translateTransform(x + (w / 2), y + (h / 2));
         page.graphics.rotateTransform(_rotationDeg);
         page.graphics.translateTransform(-(w / 2), -(h / 2));
-        page.graphics.drawImage(sfpdf.PdfBitmap(_cleanedStampPng!), Rect.fromLTWH(0, 0, w, h));
+        page.graphics.drawImage(
+            sfpdf.PdfBitmap(_cleanedStampPng!), Rect.fromLTWH(0, 0, w, h));
         page.graphics.restore(state);
       }
 
       final outputBytes = Uint8List.fromList(await document.save());
       document.dispose();
 
-      final outFile = _buildUniqueSiblingFile(
-        _pdfFile!,
-        suffix: '_stamped',
-      );
+      final outFile = _buildUniqueSiblingFile(_pdfFile!, suffix: '_stamped');
       await outFile.writeAsBytes(outputBytes, flush: true);
       _showSnack('Saved: ${outFile.path}');
     } catch (e) {
@@ -541,10 +407,6 @@ class _StampHomePageState extends State<StampHomePage> {
     } finally {
       setState(() => _isExporting = false);
     }
-  }
-
-  List<int> _buildPageIndexes(int totalPages) {
-    return List<int>.generate(totalPages, (i) => i);
   }
 
   File _buildUniqueSiblingFile(
@@ -559,13 +421,14 @@ class _StampHomePageState extends State<StampHomePage> {
 
     var index = 1;
     while (true) {
-      final candidate = File(
-        p.join(dir.path, '$base$suffix($index)$extension'),
-      );
+      final candidate =
+          File(p.join(dir.path, '$base$suffix($index)$extension'));
       if (!candidate.existsSync()) return candidate;
       index++;
     }
   }
+
+  // ── Gesture handlers ────────────────────────────────────────────────────────
 
   void _handlePreviewTapDown(TapDownDetails details) {
     if (!_isPasteMode) return;
@@ -579,12 +442,12 @@ class _StampHomePageState extends State<StampHomePage> {
 
   void _handlePreviewPanStart(DragStartDetails details) {
     if (!_isMovingStamp) return;
-    final localPosition = details.localPosition;
-    if (_isPointOnStamp(localPosition)) {
-      _movingPointerOffset = localPosition - Offset(_stampX, _stampY);
+    final pos = details.localPosition;
+    if (_isPointOnStamp(pos)) {
+      _movingPointerOffset = pos - Offset(_stampX, _stampY);
     } else {
       _movingPointerOffset = const Offset(0, 0);
-      _repositionStampWithOffset(localPosition);
+      _repositionStampWithOffset(pos);
     }
   }
 
@@ -601,37 +464,40 @@ class _StampHomePageState extends State<StampHomePage> {
     _movingPointerOffset = null;
   }
 
-  void _repositionStampWithOffset(Offset localPosition) {
+  void _repositionStampWithOffset(Offset pos) {
     final offset = _movingPointerOffset ?? Offset(_stampW / 2, _stampH / 2);
     setState(() {
-      _stampX = (localPosition.dx - offset.dx).clamp(0.0, 10000.0);
-      _stampY = (localPosition.dy - offset.dy).clamp(0.0, 10000.0);
+      _stampX = (pos.dx - offset.dx).clamp(0.0, 10000.0);
+      _stampY = (pos.dy - offset.dy).clamp(0.0, 10000.0);
     });
   }
 
-  void _repositionStampTo(Offset localPosition) {
+  void _repositionStampTo(Offset pos) {
     setState(() {
-      _stampX = (localPosition.dx - (_stampW / 2)).clamp(0.0, 10000.0);
-      _stampY = (localPosition.dy - (_stampH / 2)).clamp(0.0, 10000.0);
+      _stampX = (pos.dx - (_stampW / 2)).clamp(0.0, 10000.0);
+      _stampY = (pos.dy - (_stampH / 2)).clamp(0.0, 10000.0);
     });
   }
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _handleStampTap(TapDownDetails details) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Stamp Options', style: TextStyle(color: _kTextPrimary)),
+        title: const Text('Stamp Options',
+            style: TextStyle(color: _kTextPrimary)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               leading: const Icon(Icons.open_with, color: _kAccentPrimary),
-              title: const Text('Move', style: TextStyle(color: _kTextPrimary)),
+              title: const Text('Move',
+                  style: TextStyle(color: _kTextPrimary)),
               onTap: () {
                 Navigator.of(ctx).pop();
                 setState(() {
@@ -642,8 +508,10 @@ class _StampHomePageState extends State<StampHomePage> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-              title: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+              leading:
+                  const Icon(Icons.delete_outline, color: Colors.redAccent),
+              title: const Text('Delete',
+                  style: TextStyle(color: Colors.redAccent)),
               onTap: () {
                 Navigator.of(ctx).pop();
                 setState(() {
@@ -659,21 +527,230 @@ class _StampHomePageState extends State<StampHomePage> {
     );
   }
 
+  // ── Drawer (burger menu) ──────────────────────────────────────────────────
+
+  Widget _buildDrawer() {
+    final canPlaceStamp = _pdfFile != null && _cleanedStampPng != null;
+
+    return Drawer(
+      child: Container(
+        decoration: const BoxDecoration(gradient: _kBgGradient),
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            children: [
+              // ── Header
+              const Padding(
+                padding: EdgeInsets.only(bottom: 20),
+                child: Text(
+                  'PDF Stamp',
+                  style: TextStyle(
+                    color: _kTextPrimary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+
+              // ── File actions
+              _GlassCard(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Files',
+                        style: TextStyle(
+                            color: _kTextSecond,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1)),
+                    const SizedBox(height: 10),
+                    ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.picture_as_pdf_outlined,
+                          color: _kAccentPrimary, size: 20),
+                      title: Text(
+                        _pdfFile != null
+                            ? p.basename(_pdfFile!.path)
+                            : 'Pick PDF',
+                        style: const TextStyle(
+                            color: _kTextPrimary, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        _pickPdf();
+                      },
+                    ),
+                    ListTile(
+                      dense: true,
+                      leading: Icon(
+                        _isPasteMode
+                            ? Icons.touch_app_outlined
+                            : Icons.image_outlined,
+                        color: _kAccentPrimary,
+                        size: 20,
+                      ),
+                      title: Text(
+                        _isPasteMode
+                            ? 'Tap PDF to paste'
+                            : _stampFile != null
+                                ? p.basename(_stampFile!.path)
+                                : 'Pick Stamp',
+                        style: const TextStyle(
+                            color: _kTextPrimary, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: _isPasteMode ? null : _pickStampImage,
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // ── Stamp controls
+              _GlassCard(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.tune,
+                            size: 14, color: _kAccentPrimary),
+                        const SizedBox(width: 6),
+                        const Text('Stamp Controls',
+                            style: TextStyle(
+                                color: _kTextSecond,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1)),
+                        if (_isMovingStamp) ...[
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() => _isMovingStamp = false);
+                              Navigator.of(context).pop();
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                color: _kAccentPrimary.withOpacity(0.25),
+                                border: Border.all(color: _kAccentPrimary),
+                              ),
+                              child: const Text('Done',
+                                  style: TextStyle(
+                                      color: _kAccentPrimary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _LabelledSlider(
+                      label: 'Width',
+                      value: _stampW,
+                      min: 40,
+                      max: 380,
+                      onChanged: canPlaceStamp
+                          ? (v) => setState(() => _stampW = v)
+                          : null,
+                    ),
+                    _LabelledSlider(
+                      label: 'Height',
+                      value: _stampH,
+                      min: 25,
+                      max: 260,
+                      onChanged: canPlaceStamp
+                          ? (v) => setState(() => _stampH = v)
+                          : null,
+                    ),
+                    _LabelledSlider(
+                      label: 'Rotate',
+                      value: _rotationDeg,
+                      min: -180,
+                      max: 180,
+                      onChanged: canPlaceStamp
+                          ? (v) => setState(() => _rotationDeg = v)
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // ── Actions
+              _GlassCard(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Actions',
+                        style: TextStyle(
+                            color: _kTextSecond,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1)),
+                    const SizedBox(height: 10),
+                    ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.merge_outlined,
+                          color: _kAccentPrimary, size: 20),
+                      title: Text(
+                        _isCombining ? 'Combining…' : 'Combine 2 PDFs',
+                        style: const TextStyle(
+                            color: _kTextPrimary, fontSize: 13),
+                      ),
+                      onTap: _isCombining
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              _combineTwoPdfs();
+                            },
+                    ),
+                    ListTile(
+                      dense: true,
+                      leading: Icon(Icons.file_download_outlined,
+                          color: _isExporting
+                              ? _kTextSecond
+                              : _kAccentPrimary,
+                          size: 20),
+                      title: Text(
+                        _isExporting ? 'Exporting…' : 'Export Stamped PDF',
+                        style: TextStyle(
+                          color: _isExporting ? _kTextSecond : _kTextPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      onTap: _isExporting
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              _exportStampedPdf();
+                            },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final canPlaceStamp = _pdfFile != null && _cleanedStampPng != null;
-    final mediaQuery    = MediaQuery.of(context);
-    final bottomInset   = mediaQuery.padding.bottom > mediaQuery.viewPadding.bottom
-        ? mediaQuery.padding.bottom
-        : mediaQuery.viewPadding.bottom;
-    final safeBodyHeight = mediaQuery.size.height -
-        mediaQuery.padding.top -
-        bottomInset -
-        kToolbarHeight;
-    final previewHeight = (safeBodyHeight * 0.55).clamp(200.0, 700.0).toDouble();
-
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -703,258 +780,158 @@ class _StampHomePageState extends State<StampHomePage> {
           ),
         ),
         centerTitle: false,
+        actions: [
+          // Page indicator pill in the AppBar
+          if (_pdfController != null)
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(right: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: const Color(0x22FFFFFF),
+                  border: Border.all(color: _kGlassBorder),
+                ),
+                child: Text(
+                  'Page $_pageNumber / $_pageCount',
+                  style: const TextStyle(
+                    color: _kTextSecond,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          // Moving mode indicator
+          if (_isMovingStamp)
+            Center(
+              child: GestureDetector(
+                onTap: () => setState(() => _isMovingStamp = false),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: _kAccentPrimary.withOpacity(0.25),
+                    border: Border.all(color: _kAccentPrimary),
+                  ),
+                  child: const Text(
+                    'Done Moving',
+                    style: TextStyle(
+                      color: _kAccentPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          // Paste mode indicator
+          if (_isPasteMode)
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(right: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: _kAccentSecond.withOpacity(0.25),
+                  border: Border.all(color: _kAccentSecond),
+                ),
+                child: const Text(
+                  'Tap to Paste',
+                  style: TextStyle(
+                    color: _kAccentSecond,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
+      drawer: _buildDrawer(),
       body: Container(
         decoration: const BoxDecoration(gradient: _kBgGradient),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-
-                // ── Action buttons ─────────────────────────────────────────
-                _GlassCard(
-                  padding: const EdgeInsets.all(14),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _GlassButton(
-                        label: 'Pick PDF',
-                        icon: Icons.picture_as_pdf_outlined,
-                        onPressed: _pickPdf,
-                      ),
-                      _GlassButton(
-                        label: _isPasteMode ? 'Tap PDF to Paste' : 'Pick Stamp',
-                        icon: _isPasteMode
-                            ? Icons.touch_app_outlined
-                            : Icons.image_outlined,
-                        onPressed: _isPasteMode ? null : _pickStampImage,
-                      ),
-                      _GlassButton(
-                        label: _isCombining ? 'Combining…' : 'Combine 2',
-                        icon: Icons.merge_outlined,
-                        loading: _isCombining,
-                        onPressed: _isCombining ? null : _combineTwoPdfs,
-                      ),
-                      _GlassButton(
-                        label: _isExporting ? 'Exporting…' : 'Export',
-                        icon: Icons.file_download_outlined,
-                        primary: true,
-                        loading: _isExporting,
-                        onPressed: _isExporting ? null : _exportStampedPdf,
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                // ── File info chips ────────────────────────────────────────
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    _InfoChip(
-                      label: 'PDF',
-                      value: _pdfFile != null
-                          ? p.basename(_pdfFile!.path)
-                          : 'none',
-                    ),
-                    _InfoChip(
-                      label: 'Stamp',
-                      value: _stampFile != null
-                          ? p.basename(_stampFile!.path)
-                          : _cleanedStampPng != null ? 'loaded' : 'none',
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // ── PDF preview ────────────────────────────────────────────
-                _GlassCard(
-                  padding: EdgeInsets.zero,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: SizedBox(
-                      height: previewHeight,
-                      child: _pdfController != null
-                          ? Stack(
-                              children: [
-                                                GestureDetector(
-                                  behavior: HitTestBehavior.translucent,
-                                  onTapDown: _isPasteMode ? _handlePreviewTapDown : null,
-                                  onPanStart: _isMovingStamp ? _handlePreviewPanStart : null,
-                                  onPanUpdate: _isMovingStamp ? _handlePreviewPanUpdate : null,
-                                  onPanEnd: _isMovingStamp ? _handlePreviewPanEnd : null,
-                                  onPanCancel: _isMovingStamp ? _handlePreviewPanCancel : null,
-                                  child: Scrollbar(
-                                    thumbVisibility: true,
-                                    interactive: true,
-                                    child: PdfViewPinch(
-                                      controller: _pdfController!,
-                                      onPageChanged: (page) =>
-                                          setState(() => _pageNumber = page),
-                                      onDocumentLoaded: (doc) {
-                                        setState(() {
-                                          _pageCount = doc.pagesCount;
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                if (_cleanedStampPng != null)
-                                  Positioned(
-                                    left: _stampX,
-                                    top:  _stampY,
-                                    child: GestureDetector(
-                                      onTapDown: _isMovingStamp ? null : _handleStampTap,
-                                      child: Transform.rotate(
-                                        angle: _rotationDeg * 3.1415926535 / 180.0,
-                                        child: Opacity(
-                                          opacity: _isMovingStamp ? 0.65 : 1.0,
-                                          child: Image.memory(
-                                            _cleanedStampPng!,
-                                            width:  _stampW,
-                                            height: _stampH,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            )
-                          : const Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.picture_as_pdf_outlined,
-                                      size: 48, color: _kTextSecond),
-                                  SizedBox(height: 10),
-                                  Text(
-                                    'Pick a PDF to preview',
-                                    style: TextStyle(
-                                      color: _kTextSecond,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                // ── Page indicator ─────────────────────────────────────────
-                if (_pdfController != null)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: const Color(0x22FFFFFF),
-                        border: Border.all(color: _kGlassBorder),
-                      ),
-                      child: Text(
-                        'Page $_pageNumber / $_pageCount',
-                        style: const TextStyle(
-                          color: _kTextSecond,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                const SizedBox(height: 10),
-
-                // ── Stamp controls ─────────────────────────────────────────
-                _GlassCard(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.tune, size: 16, color: _kAccentPrimary),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'Stamp Controls',
-                            style: TextStyle(
-                              color: _kTextPrimary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                          if (_isMovingStamp) ...[
-                            const Spacer(),
-                            GestureDetector(
-                              onTap: () => setState(() => _isMovingStamp = false),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  color: _kAccentPrimary.withOpacity(0.25),
-                                  border: Border.all(color: _kAccentPrimary),
-                                ),
-                                child: const Text(
-                                  'Done Moving',
-                                  style: TextStyle(
-                                    color: _kAccentPrimary,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      _LabelledSlider(
-                        label: 'Width',
-                        value: _stampW,
-                        min: 40,
-                        max: 380,
-                        onChanged: canPlaceStamp
-                            ? (v) => setState(() => _stampW = v)
-                            : null,
-                      ),
-                      _LabelledSlider(
-                        label: 'Height',
-                        value: _stampH,
-                        min: 25,
-                        max: 260,
-                        onChanged: canPlaceStamp
-                            ? (v) => setState(() => _stampH = v)
-                            : null,
-                      ),
-                      _LabelledSlider(
-                        label: 'Rotate',
-                        value: _rotationDeg,
-                        min: -180,
-                        max: 180,
-                        onChanged: canPlaceStamp
-                            ? (v) => setState(() => _rotationDeg = v)
-                            : null,
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
+          child: _buildPdfArea(),
         ),
       ),
+    );
+  }
+
+  Widget _buildPdfArea() {
+    if (_pdfController == null) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.picture_as_pdf_outlined, size: 64, color: _kTextSecond),
+            SizedBox(height: 12),
+            Text(
+              'Open the menu to pick a PDF',
+              style: TextStyle(color: _kTextSecond, fontSize: 15),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // When in paste or moving mode, wrap with gesture detector.
+    // When idle, PdfViewPinch handles all gestures (scroll/zoom) directly.
+    final pdfView = PdfViewPinch(
+      controller: _pdfController!,
+      onPageChanged: (page) => setState(() => _pageNumber = page),
+      onDocumentLoaded: (doc) {
+        setState(() => _pageCount = doc.pagesCount);
+      },
+    );
+
+    Widget preview;
+    if (_isPasteMode) {
+      preview = GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTapDown: _handlePreviewTapDown,
+        child: pdfView,
+      );
+    } else if (_isMovingStamp) {
+      preview = GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onPanStart: _handlePreviewPanStart,
+        onPanUpdate: _handlePreviewPanUpdate,
+        onPanEnd: _handlePreviewPanEnd,
+        onPanCancel: _handlePreviewPanCancel,
+        child: pdfView,
+      );
+    } else {
+      preview = pdfView;
+    }
+
+    return Stack(
+      children: [
+        preview,
+        if (_cleanedStampPng != null)
+          Positioned(
+            left: _stampX,
+            top: _stampY,
+            child: GestureDetector(
+              onTapDown: _isMovingStamp ? null : _handleStampTap,
+              child: Transform.rotate(
+                angle: _rotationDeg * 3.1415926535 / 180.0,
+                child: Opacity(
+                  opacity: _isMovingStamp ? 0.65 : 1.0,
+                  child: Image.memory(
+                    _cleanedStampPng!,
+                    width: _stampW,
+                    height: _stampH,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -138,11 +138,13 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: verified local git diff and staging scope; Flutter SDK is unavailable in this environment, so runtime/build validation was not executed.
 
-## 2026-05-29 20:41 SGT
-- Removed two-finger scrolling/pointer-tracking layer on the PDF preview and switched to gesture handlers that keep default `PdfViewPinch` scroll/zoom behavior when not in active stamp interaction.
-- Added explicit paste-on-tap flow (`_isPasteMode`): after picking stamp, user taps PDF once to paste; then paste mode exits.
-- Moving mode now preserves initial touch offset via `_movingPointerOffset`, preventing stamp jump at drag start.
-- Removed Start/End page range UI and logic remnants; export stamps all pages by default.
+## 2026-05-29 20:55 SGT
+- Moved all controls (file pickers, stamp sliders, combine/export actions) into a Drawer (hamburger menu on the left).
+- Removed `SingleChildScrollView` wrapping — PDF now fills the entire screen below the AppBar with no competing scroll.
+- PDF scrolling/zoom handled exclusively by `PdfViewPinch` when not in paste/move mode.
+- Page indicator pill and mode badges (Tap to Paste / Done Moving) shown in AppBar actions area.
+- Paste mode: after picking stamp, drawer closes, user taps PDF to place. Moving mode: drag preserves touch offset.
+- All existing functionality preserved (export all pages, combine, same-dir output, glassmorphism theme).
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
-- Validation: static diff verification only; Flutter SDK unavailable in this environment.
+- Validation: static review only; Flutter SDK unavailable in this environment.
 
