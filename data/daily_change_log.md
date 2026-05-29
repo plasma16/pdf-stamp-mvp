@@ -166,3 +166,11 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: static code review and targeted diff checks only; Flutter SDK unavailable in this environment.
 
+## 2026-05-29 21:45 SGT
+- Added manual background transparency control in burger menu (`lib/main.dart`) with persistent opacity slider (`_stampOpacity`) and saved preference key `stamp_opacity` via `shared_preferences`.
+- Added live preview panel in drawer showing current opacity effect (`Preview XX%`) using the processed stamp image.
+- Applied opacity setting consistently to on-canvas stamp rendering and exported PDF output (`setTransparency(_stampOpacity)`).
+- Added dependency `shared_preferences: ^2.3.2` in `pubspec.yaml`.
+- Changed files: `lib/main.dart`, `pubspec.yaml`, `data/daily_change_log.md`.
+- Validation: static diff/code review only; Flutter SDK unavailable in this environment.
+

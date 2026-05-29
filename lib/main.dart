@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui';
@@ -7,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:pdfx/pdfx.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sfpdf;
 
 // ── Glassmorphism design tokens ──────────────────────────────────────────────
@@ -22,6 +24,8 @@ const _kAccentPrimary = Color(0xFF7B61FF);
 const _kAccentSecond  = Color(0xFF00D2FF);
 const _kTextPrimary   = Color(0xFFF0F0FF);
 const _kTextSecond    = Color(0xAAC8C8E8);
+const _kStampOpacityPrefKey = 'stamp_opacity';
+const _kMinStampOpacity = 0.05;
 
 // ── App entry ─────────────────────────────────────────────────────────────────
 void main() {
@@ -194,6 +198,7 @@ class _StampHomePageState extends State<StampHomePage> {
   double _stampW = 140;
   double _stampH = 90;
   double _rotationDeg = 0;
+  double _stampOpacity = 1.0;
 
   bool _isMovingStamp = false;
   bool _isPasteMode = false;
@@ -208,9 +213,35 @@ class _StampHomePageState extends State<StampHomePage> {
   bool _isPointOnStamp(Offset pos) => _stampBounds.contains(pos);
 
   @override
+  void initState() {
+    super.initState();
+    _loadStampOpacity();
+  }
+
+  @override
   void dispose() {
     _pdfController?.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadStampOpacity() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getDouble(_kStampOpacityPrefKey);
+    if (saved == null || !mounted) return;
+    setState(() {
+      _stampOpacity = saved.clamp(_kMinStampOpacity, 1.0).toDouble();
+    });
+  }
+
+  Future<void> _saveStampOpacity(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_kStampOpacityPrefKey, value);
+  }
+
+  void _updateStampOpacity(double value) {
+    final clamped = value.clamp(_kMinStampOpacity, 1.0).toDouble();
+    setState(() => _stampOpacity = clamped);
+    unawaited(_saveStampOpacity(clamped));
   }
 
   // ── Actions ────────────────────────────────────────────────────────────────
@@ -432,6 +463,7 @@ class _StampHomePageState extends State<StampHomePage> {
         page.graphics.translateTransform(x + (w / 2), y + (h / 2));
         page.graphics.rotateTransform(_rotationDeg);
         page.graphics.translateTransform(-(w / 2), -(h / 2));
+        page.graphics.setTransparency(_stampOpacity);
         page.graphics.drawImage(
             sfpdf.PdfBitmap(_cleanedStampPng!), Rect.fromLTWH(0, 0, w, h));
         page.graphics.restore(state);
@@ -750,6 +782,51 @@ class _StampHomePageState extends State<StampHomePage> {
                           ? (v) => setState(() => _rotationDeg = v)
                           : null,
                     ),
+                    _LabelledSlider(
+                      label: 'Opacity',
+                      value: _stampOpacity * 100,
+                      min: _kMinStampOpacity * 100,
+                      max: 100,
+                      onChanged: (v) => _updateStampOpacity(v / 100),
+                    ),
+                    if (_cleanedStampPng != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, bottom: 6),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0x14000000),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: _kGlassBorder),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Preview ${(_stampOpacity * 100).round()}%',
+                                style: const TextStyle(
+                                  color: _kTextSecond,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Center(
+                                child: Opacity(
+                                  opacity: _stampOpacity,
+                                  child: Image.memory(
+                                    _cleanedStampPng!,
+                                    width: 120,
+                                    height: 52,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -985,7 +1062,8 @@ class _StampHomePageState extends State<StampHomePage> {
               child: Transform.rotate(
                 angle: _rotationDeg * 3.1415926535 / 180.0,
                 child: Opacity(
-                  opacity: _isMovingStamp ? 0.65 : 1.0,
+                  opacity:
+                      (_stampOpacity * (_isMovingStamp ? 0.65 : 1.0)).clamp(0.0, 1.0).toDouble(),
                   child: Image.memory(
                     _cleanedStampPng!,
                     width: _stampW,
