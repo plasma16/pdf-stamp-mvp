@@ -116,3 +116,11 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: local Flutter run/analyze not executed because Flutter SDK is unavailable in this environment (`flutter: command not found`).
 
+## 2026-05-29 19:47 SGT
+- Redesigned app UI with modern glassmorphism aesthetic.
+- Added deep purple/indigo gradient background (`_kBgGradient`), frosted-glass cards (`_GlassCard` with `BackdropFilter`), glowing gradient primary button, icon-labelled buttons, labelled slider rows with live values, info chips for file status, pill page indicator, and transparent blurred AppBar.
+- Dialog updated with icon list tiles. Stamp move mode shows inline "Done Moving" badge.
+- All existing functionality (export, combine, page range, sliders, stamp drag/delete, safe insets) preserved.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: static review only; Flutter SDK unavailable in this environment.
+
