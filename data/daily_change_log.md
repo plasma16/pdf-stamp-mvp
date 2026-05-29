@@ -238,6 +238,14 @@
 - Changed files: `lib/main.dart`, `data/daily_change_log.md`.
 - Validation: `flutter analyze` run locally; 8 pre-existing warnings/info-level issues, no new analyzer errors.
 
+## 2026-05-30 SGT
+- Fixed `_exportStampedPdf()` coordinate mapping in `lib/main.dart` to use contain-fit logic matching `PdfViewPinch` rendering.
+- Previous approach used independent X/Y scale factors for position and `min(scaleX, scaleY)` for size, which placed stamps incorrectly when page aspect ratio differed from preview widget aspect ratio (letterboxing offset was ignored).
+- New approach computes the rendered page sub-rect within the preview (contain-fit: fit by width or height with centered offset), then applies a single uniform scale factor for both position and size mapping from rendered-page coordinates to PDF points.
+- This preserves stamp aspect ratio, correct placement, and full image resolution in the exported PDF.
+- Changed files: `lib/main.dart`, `data/daily_change_log.md`.
+- Validation: `flutter analyze` run locally; 8 pre-existing warnings/info-level issues, no new analyzer errors.
+
 ## 2026-05-29 23:09 SGT
 - Updated stamp picker in `lib/main.dart` to accept PDF in addition to image files (`png`, `jpg`, `jpeg`, `pdf`).
 - Added `_readStampSourceBytes(PlatformFile)` to preserve existing image behavior and add PDF behavior: when a stamp PDF is selected, render page 1 to PNG (`PdfDocument.openData` + `page.render(...)`) before passing through existing background-cleaning and placement pipeline.

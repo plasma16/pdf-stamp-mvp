@@ -673,36 +673,49 @@ class _StampHomePageState extends State<StampHomePage> {
       final page = document.pages[currentPageIndex];
       final pageSize = page.size;
 
-      // Get the preview stack dimensions for coordinate mapping.
+      // Get actual preview widget dimensions.
       final stackContext = _previewStackKey.currentContext;
       final renderBox = stackContext?.findRenderObject() as RenderBox?;
       final previewSize = renderBox?.size ?? MediaQuery.of(context).size;
       final previewW = previewSize.width;
       final previewH = previewSize.height;
 
-      final scaleX = pageSize.width / previewW;
-      final scaleY = pageSize.height / previewH;
+      // Compute how PdfViewPinch renders the page (contain-fit).
+      final pageAspect = pageSize.width / pageSize.height;
+      final previewAspect = previewW / previewH;
 
-      // Use uniform scale for stamp SIZE to preserve aspect ratio.
-      // Use the smaller of the two so the stamp fits proportionally.
-      final uniformScale = scaleX < scaleY ? scaleX : scaleY;
+      double renderedW, renderedH, offsetX, offsetY;
+      if (pageAspect > previewAspect) {
+        // Page wider than preview → fit by width
+        renderedW = previewW;
+        renderedH = previewW / pageAspect;
+        offsetX = 0;
+        offsetY = (previewH - renderedH) / 2;
+      } else {
+        // Page taller than preview → fit by height
+        renderedH = previewH;
+        renderedW = previewH * pageAspect;
+        offsetX = (previewW - renderedW) / 2;
+        offsetY = 0;
+      }
+
+      // Single uniform scale from rendered-page pixels to PDF points.
+      final pdfScale = pageSize.width / renderedW;
 
       for (final stamp in _placedStamps) {
-        // Position uses per-axis scaling to maintain placement on the page
-        final x = stamp.x * scaleX;
-        final y = stamp.y * scaleY;
-        // Size uses UNIFORM scaling to preserve aspect ratio
-        final w = stamp.w * uniformScale;
-        final h = stamp.h * uniformScale;
+        final pdfX = (stamp.x - offsetX) * pdfScale;
+        final pdfY = (stamp.y - offsetY) * pdfScale;
+        final pdfW = stamp.w * pdfScale;
+        final pdfH = stamp.h * pdfScale;
 
         final state = page.graphics.save();
-        page.graphics.translateTransform(x + (w / 2), y + (h / 2));
+        page.graphics.translateTransform(pdfX + (pdfW / 2), pdfY + (pdfH / 2));
         page.graphics.rotateTransform(stamp.rotationDeg);
-        page.graphics.translateTransform(-(w / 2), -(h / 2));
+        page.graphics.translateTransform(-(pdfW / 2), -(pdfH / 2));
         page.graphics.setTransparency(1.0);
         page.graphics.drawImage(
           sfpdf.PdfBitmap(stamp.png),
-          Rect.fromLTWH(0, 0, w, h),
+          Rect.fromLTWH(0, 0, pdfW, pdfH),
         );
         page.graphics.restore(state);
       }
