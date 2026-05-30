@@ -1,3 +1,8 @@
+## 2026-05-30 08:00 SGT
+- Rewrote `_combineTwoPdfs` to use pdfx render-based merging instead of Syncfusion `createTemplate`/`drawPdfTemplate`. The cross-document template approach was fundamentally broken — templates held internal references that became invalid on save, producing blank pages. New approach: render each page via pdfx at 2x resolution, draw as PdfBitmap images into a fresh PdfDocument using `pages.add()` with correct pageSettings per page. Added `_RenderedPage` helper class.
+- Bumped version to 0.3.1+3.
+- `flutter analyze`: 8 pre-existing issues, no new errors.
+
 ## 2026-05-30 07:35 SGT
 - Fixed `_combineTwoPdfs`: moved `outDoc.save()` BEFORE `doc2.dispose()` — `drawPdfTemplate` holds cross-document references to doc2's internal objects, so disposing doc2 early caused the second PDF's pages to be lost on save. Also switched from `pages.add()` to `pages.insert(count, pageSize, zeroMargins)` to ensure correct page dimensions.
 - `flutter analyze`: 8 pre-existing issues, no new errors.
