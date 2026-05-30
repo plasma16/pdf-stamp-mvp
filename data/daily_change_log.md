@@ -1,3 +1,16 @@
+## 2026-05-30 SGT
+- Refactored `lib/main.dart` so that stamps scroll/zoom with the PDF page instead of staying at fixed screen positions.
+- Replaced `PdfViewPinch` (which handled its own internal scroll/zoom independently of stamps) with a single-page rendered image inside a shared coordinate space with stamps, all wrapped in an `InteractiveViewer`.
+- Added `_renderCurrentPage()` method to render current PDF page at 2x resolution as PNG for crisp display.
+- Added `_goToPage()` and prev/next `IconButton` page navigation bar at the bottom for multi-page PDFs.
+- Updated `_handlePreviewTapDown` to convert screen tap position to page-point coordinates via the Stack's render box.
+- Simplified `_exportStampedPdf()` coordinate mapping: since stamps are now in page-point coordinates (the preview Stack is sized to match PDF page dimensions), the mapping is 1:1 — no more contain-fit / uniform-scale computation needed.
+- Removed old page indicator pill from AppBar (replaced by bottom navigation bar).
+- Added `_pdfDocument`, `_currentPageImage`, `_currentPageW`, `_currentPageH`, and `TransformationController` state fields; removed `PdfControllerPinch`.
+- Bumped version to 0.3.3+5.
+- Changed files: `lib/main.dart`, `pubspec.yaml`, `data/daily_change_log.md`.
+- Validation: static code review; Flutter SDK unavailable in this environment.
+
 ## 2026-05-30 08:00 SGT
 - Rewrote `_combineTwoPdfs` to use pdfx render-based merging instead of Syncfusion `createTemplate`/`drawPdfTemplate`. The cross-document template approach was fundamentally broken — templates held internal references that became invalid on save, producing blank pages. New approach: render each page via pdfx at 2x resolution, draw as PdfBitmap images into a fresh PdfDocument using `pages.add()` with correct pageSettings per page. Added `_RenderedPage` helper class.
 - Bumped version to 0.3.1+3.

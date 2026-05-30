@@ -254,7 +254,11 @@ class _StampHomePageState extends State<StampHomePage> {
   final List<_PlacedStamp> _placedStamps = [];
   int? _selectedStampIndex;
 
-  PdfControllerPinch? _pdfController;
+  PdfDocument? _pdfDocument;
+  Uint8List? _currentPageImage;  // rendered PNG of current page
+  double _currentPageW = 0;      // page width in PDF points
+  double _currentPageH = 0;      // page height in PDF points
+  final TransformationController _viewerController = TransformationController();
   final GlobalKey _previewStackKey = GlobalKey();
 
   int _pageNumber = 1;
@@ -306,7 +310,8 @@ class _StampHomePageState extends State<StampHomePage> {
 
   @override
   void dispose() {
-    _pdfController?.dispose();
+    _pdfDocument?.close();
+    _viewerController.dispose();
     super.dispose();
   }
 
@@ -460,14 +465,58 @@ class _StampHomePageState extends State<StampHomePage> {
       return;
     }
 
-    _pdfController?.dispose();
-    _pdfController = PdfControllerPinch(document: PdfDocument.openFile(file.path));
+    await _pdfDocument?.close();
+    final doc = await PdfDocument.openFile(file.path);
 
     setState(() {
       _pdfFile = file;
+      _pdfDocument = doc;
       _pageNumber = 1;
-      _pageCount = 1;
+      _pageCount = doc.pagesCount;
+      _placedStamps.clear();
+      _selectedStampIndex = null;
     });
+
+    await _renderCurrentPage();
+  }
+
+  Future<void> _renderCurrentPage() async {
+    final doc = _pdfDocument;
+    if (doc == null) return;
+
+    final page = await doc.getPage(_pageNumber);
+    try {
+      // Render at 2x for crisp display on high-DPI screens.
+      final scale = 2.0;
+      final rendered = await page.render(
+        width: page.width * scale,
+        height: page.height * scale,
+        format: PdfPageImageFormat.png,
+        backgroundColor: '#FFFFFF',
+      );
+      if (rendered == null || rendered.bytes.isEmpty) return;
+      if (!mounted) return;
+      setState(() {
+        _currentPageImage = rendered.bytes;
+        _currentPageW = page.width;
+        _currentPageH = page.height;
+      });
+    } finally {
+      await page.close();
+    }
+  }
+
+  Future<void> _goToPage(int page) async {
+    if (_pdfDocument == null) return;
+    final target = page.clamp(1, _pageCount);
+    if (target == _pageNumber) return;
+    setState(() {
+      _pageNumber = target;
+      _placedStamps.clear();
+      _selectedStampIndex = null;
+    });
+    _viewerController.value = Matrix4.identity();
+    await _renderCurrentPage();
   }
 
   Future<void> _pickStampImage() async {
@@ -832,42 +881,14 @@ class _StampHomePageState extends State<StampHomePage> {
       final currentPageIndex = (_pageNumber - 1).clamp(0, totalPages - 1);
 
       final page = document.pages[currentPageIndex];
-      final pageSize = page.size;
 
-      // Get actual preview widget dimensions.
-      final stackContext = _previewStackKey.currentContext;
-      final renderBox = stackContext?.findRenderObject() as RenderBox?;
-      final previewSize = renderBox?.size ?? MediaQuery.of(context).size;
-      final previewW = previewSize.width;
-      final previewH = previewSize.height;
-
-      // Compute how PdfViewPinch renders the page (contain-fit).
-      final pageAspect = pageSize.width / pageSize.height;
-      final previewAspect = previewW / previewH;
-
-      double renderedW, renderedH, offsetX, offsetY;
-      if (pageAspect > previewAspect) {
-        // Page wider than preview → fit by width
-        renderedW = previewW;
-        renderedH = previewW / pageAspect;
-        offsetX = 0;
-        offsetY = (previewH - renderedH) / 2;
-      } else {
-        // Page taller than preview → fit by height
-        renderedH = previewH;
-        renderedW = previewH * pageAspect;
-        offsetX = (previewW - renderedW) / 2;
-        offsetY = 0;
-      }
-
-      // Single uniform scale from rendered-page pixels to PDF points.
-      final pdfScale = pageSize.width / renderedW;
-
+      // Stamps are already in page-point coordinates (the preview Stack
+      // is sized to match PDF page dimensions), so mapping is 1:1.
       for (final stamp in _placedStamps) {
-        final pdfX = (stamp.x - offsetX) * pdfScale;
-        final pdfY = (stamp.y - offsetY) * pdfScale;
-        final pdfW = stamp.w * pdfScale;
-        final pdfH = stamp.h * pdfScale;
+        final pdfX = stamp.x;
+        final pdfY = stamp.y;
+        final pdfW = stamp.w;
+        final pdfH = stamp.h;
 
         // Use high-res re-render for PDF-sourced stamps.
         Uint8List stampPng = stamp.png;
@@ -946,7 +967,14 @@ class _StampHomePageState extends State<StampHomePage> {
 
   void _handlePreviewTapDown(TapDownDetails details) {
     if (!_isPasteMode || _pendingStampPng == null) return;
-    _addStampAt(details.localPosition);
+
+    // Convert screen position to page-coordinate space.
+    final stackContext = _previewStackKey.currentContext;
+    final renderBox = stackContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    final localPos = renderBox.globalToLocal(details.globalPosition);
+    _addStampAt(localPos);
   }
 
   void _addStampAt(Offset pos) {
@@ -1462,28 +1490,6 @@ class _StampHomePageState extends State<StampHomePage> {
         ),
         centerTitle: false,
         actions: [
-          // Page indicator pill in the AppBar
-          if (_pdfController != null)
-            Center(
-              child: Container(
-                margin: const EdgeInsets.only(right: 12),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  color: const Color(0x22FFFFFF),
-                  border: Border.all(color: _kGlassBorder),
-                ),
-                child: Text(
-                  'Page $_pageNumber / $_pageCount',
-                  style: const TextStyle(
-                    color: _kTextSecond,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
           // Moving mode indicator
           if (_isMovingStamp)
             Center(
@@ -1565,7 +1571,7 @@ class _StampHomePageState extends State<StampHomePage> {
   }
 
   Widget _buildPdfArea() {
-    if (_pdfController == null) {
+    if (_pdfDocument == null || _currentPageImage == null) {
       return const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1581,29 +1587,80 @@ class _StampHomePageState extends State<StampHomePage> {
       );
     }
 
-    // When in paste mode, wrap with tap handler.
-    // Otherwise PdfViewPinch handles all gestures (scroll/zoom) directly.
-    final pdfView = PdfViewPinch(
-      controller: _pdfController!,
-      onPageChanged: (page) => setState(() => _pageNumber = page),
-      onDocumentLoaded: (doc) {
-        setState(() => _pageCount = doc.pagesCount);
-      },
+    // The page image and stamps share the same coordinate space.
+    // InteractiveViewer handles zoom/pan for everything together.
+    final pageContent = SizedBox(
+      width: _currentPageW,
+      height: _currentPageH,
+      child: Stack(
+        key: _previewStackKey,
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Image.memory(
+              _currentPageImage!,
+              fit: BoxFit.fill,
+              gaplessPlayback: true,
+            ),
+          ),
+          for (var i = 0; i < _placedStamps.length; i++)
+            _buildPlacedStamp(i, _placedStamps[i]),
+        ],
+      ),
     );
 
-    final preview = GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTapDown: _isPasteMode ? _handlePreviewTapDown : null,
-      child: pdfView,
-    );
-
-    return Stack(
-      key: _previewStackKey,
-      fit: StackFit.expand,
+    return Column(
       children: [
-        preview,
-        for (var i = 0; i < _placedStamps.length; i++)
-          _buildPlacedStamp(i, _placedStamps[i]),
+        Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTapDown: _isPasteMode ? _handlePreviewTapDown : null,
+            child: InteractiveViewer(
+              transformationController: _viewerController,
+              minScale: 0.5,
+              maxScale: 5.0,
+              boundaryMargin: const EdgeInsets.all(200),
+              child: Center(child: pageContent),
+            ),
+          ),
+        ),
+        // Page navigation bar
+        if (_pageCount > 1)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0x00302B63), Color(0x88302B63)],
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left, color: _kTextPrimary),
+                  onPressed: _pageNumber > 1
+                      ? () => _goToPage(_pageNumber - 1)
+                      : null,
+                ),
+                Text(
+                  'Page $_pageNumber / $_pageCount',
+                  style: const TextStyle(
+                    color: _kTextSecond,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right, color: _kTextPrimary),
+                  onPressed: _pageNumber < _pageCount
+                      ? () => _goToPage(_pageNumber + 1)
+                      : null,
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
