@@ -237,18 +237,6 @@ class _ImageDimensions {
   final double height;
 }
 
-class _RenderedPage {
-  const _RenderedPage({
-    required this.imageBytes,
-    required this.width,
-    required this.height,
-  });
-
-  final Uint8List imageBytes;
-  final double width;
-  final double height;
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 class StampHomePage extends StatefulWidget {
   const StampHomePage({super.key});
@@ -776,80 +764,54 @@ class _StampHomePageState extends State<StampHomePage> {
       final file1 = File(path1);
       final file2 = File(path2);
 
-      // Merge by rendering all pages from both files as high-res images
-      // and composing them into a fresh document. This avoids unreliable
-      // cross-document createTemplate issues in Syncfusion.
-      final List<_RenderedPage> renderedPages = [];
-
-      Future<void> renderPagesFromFile(File file) async {
-        final pdfDoc = await PdfDocument.openFile(file.path);
-        try {
-          for (int i = 1; i <= pdfDoc.pagesCount; i++) {
-            final page = await pdfDoc.getPage(i);
-            try {
-              // Render at 2x for crisp output (≈144 DPI).
-              final rendered = await page.render(
-                width: page.width * 2.0,
-                height: page.height * 2.0,
-                format: PdfPageImageFormat.png,
-                backgroundColor: '#FFFFFF',
-              );
-              if (rendered != null && rendered.bytes.isNotEmpty) {
-                renderedPages.add(_RenderedPage(
-                  imageBytes: rendered.bytes,
-                  width: page.width,
-                  height: page.height,
-                ));
-              }
-            } finally {
-              await page.close();
-            }
-          }
-        } finally {
-          await pdfDoc.close();
-        }
-      }
-
-      await renderPagesFromFile(file1);
-      await renderPagesFromFile(file2);
-
-      if (renderedPages.isEmpty) {
-        _showSnack('No pages could be rendered.');
-        return;
-      }
-
-      // Build output PDF: one page per rendered image.
+      // Vector-preserving merge using createTemplate/drawPdfTemplate.
+      // Key rules: (1) use a NEW PdfDocument (not loaded from bytes) so
+      // pages.add() works, (2) set pageSettings before each add() for
+      // correct dimensions, (3) keep ALL source docs alive until save().
+      final doc1 = sfpdf.PdfDocument(inputBytes: await file1.readAsBytes());
+      final doc2 = sfpdf.PdfDocument(inputBytes: await file2.readAsBytes());
       final outDoc = sfpdf.PdfDocument();
-      // The constructor creates one default page — we'll replace it.
-      // Set page settings for the first page, then handle the rest.
-      for (int i = 0; i < renderedPages.length; i++) {
-        final rp = renderedPages[i];
-        sfpdf.PdfPage dstPage;
-        if (i == 0) {
-          // Reconfigure the default first page.
-          outDoc.pageSettings.size = Size(rp.width, rp.height);
-          outDoc.pageSettings.margins.all = 0;
-          dstPage = outDoc.pages[0];
-        } else {
-          outDoc.pageSettings.size = Size(rp.width, rp.height);
-          outDoc.pageSettings.margins.all = 0;
-          dstPage = outDoc.pages.add();
+      try {
+        bool isFirstPage = true;
+
+        void copyPages(sfpdf.PdfDocument source) {
+          for (int i = 0; i < source.pages.count; i++) {
+            final srcPage = source.pages[i];
+            final pageSize = srcPage.size;
+            final template = srcPage.createTemplate();
+
+            outDoc.pageSettings.size = pageSize;
+            outDoc.pageSettings.margins.all = 0;
+
+            sfpdf.PdfPage dstPage;
+            if (isFirstPage) {
+              // Reuse the default blank page created by PdfDocument().
+              dstPage = outDoc.pages[0];
+              isFirstPage = false;
+            } else {
+              dstPage = outDoc.pages.add();
+            }
+
+            dstPage.graphics.drawPdfTemplate(template, Offset.zero, pageSize);
+          }
         }
-        dstPage.graphics.drawImage(
-          sfpdf.PdfBitmap(rp.imageBytes),
-          Rect.fromLTWH(0, 0, rp.width, rp.height),
+
+        copyPages(doc1);
+        copyPages(doc2);
+
+        final outBytes = Uint8List.fromList(await outDoc.save());
+
+        final outFile = _buildUniqueSiblingFile(
+          file1,
+          suffix: '_${p.basenameWithoutExtension(file2.path)}_combined',
         );
+        await outFile.writeAsBytes(outBytes, flush: true);
+        _showSnack('Saved: ${_displaySavedPath(file1, outFile)}');
+      } finally {
+        doc1.dispose();
+        doc2.dispose();
+        outDoc.dispose();
       }
-
-      final outBytes = Uint8List.fromList(await outDoc.save());
-      outDoc.dispose();
-
-      final outFile = _buildUniqueSiblingFile(
-        file1,
-        suffix: '_${p.basenameWithoutExtension(file2.path)}_combined',
-      );
-      await outFile.writeAsBytes(outBytes, flush: true);
-      _showSnack('Saved: ${_displaySavedPath(file1, outFile)}');
     } catch (e) {
       _showSnack('Failed to combine PDFs: $e');
     } finally {
