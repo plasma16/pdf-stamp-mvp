@@ -765,8 +765,8 @@ class _StampHomePageState extends State<StampHomePage> {
       final file2 = File(path2);
 
       // Load file1 as the base document, then append pages from file2.
-      // Avoids the empty-PdfDocument() default-page pitfall that causes
-      // null-check errors with createTemplate/insert.
+      // IMPORTANT: doc2 must stay alive until outDoc.save() completes,
+      // because drawPdfTemplate holds references to doc2's internal objects.
       final doc1Bytes = await file1.readAsBytes();
       final doc2Bytes = await file2.readAsBytes();
       final outDoc = sfpdf.PdfDocument(inputBytes: doc1Bytes);
@@ -776,26 +776,27 @@ class _StampHomePageState extends State<StampHomePage> {
           final srcPage = doc2.pages[i];
           final pageSize = srcPage.size;
           final template = srcPage.createTemplate();
-          final dstPage = outDoc.pages.add();
+          final zeroMargins = sfpdf.PdfMargins()..all = 0;
+          final dstPage = outDoc.pages.insert(outDoc.pages.count, pageSize, zeroMargins);
           dstPage.graphics.drawPdfTemplate(
             template,
             Offset.zero,
             Size(pageSize.width, pageSize.height),
           );
         }
+
+        final outBytes = Uint8List.fromList(await outDoc.save());
+
+        final outFile = _buildUniqueSiblingFile(
+          file1,
+          suffix: '_${p.basenameWithoutExtension(file2.path)}_combined',
+        );
+        await outFile.writeAsBytes(outBytes, flush: true);
+        _showSnack('Saved: ${_displaySavedPath(file1, outFile)}');
       } finally {
         doc2.dispose();
+        outDoc.dispose();
       }
-
-      final outBytes = Uint8List.fromList(await outDoc.save());
-      outDoc.dispose();
-
-      final outFile = _buildUniqueSiblingFile(
-        file1,
-        suffix: '_${p.basenameWithoutExtension(file2.path)}_combined',
-      );
-      await outFile.writeAsBytes(outBytes, flush: true);
-      _showSnack('Saved: ${_displaySavedPath(file1, outFile)}');
     } catch (e) {
       _showSnack('Failed to combine PDFs: $e');
     } finally {

@@ -1,3 +1,7 @@
+## 2026-05-30 07:35 SGT
+- Fixed `_combineTwoPdfs`: moved `outDoc.save()` BEFORE `doc2.dispose()` — `drawPdfTemplate` holds cross-document references to doc2's internal objects, so disposing doc2 early caused the second PDF's pages to be lost on save. Also switched from `pages.add()` to `pages.insert(count, pageSize, zeroMargins)` to ensure correct page dimensions.
+- `flutter analyze`: 8 pre-existing issues, no new errors.
+
 ## 2026-05-30 07:25 SGT
 - Fixed `_combineTwoPdfs`: replaced empty `PdfDocument()` + `pages.insert` approach with loading file1 as base document and appending file2 pages via `pages.add()`. The old approach hit null-check errors because `PdfDocument()` creates a default empty page and `createTemplate`/`insert` didn't handle that correctly.
 - `flutter analyze`: 8 pre-existing issues, no new errors.
