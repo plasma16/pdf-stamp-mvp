@@ -883,35 +883,31 @@ class _StampHomePageState extends State<StampHomePage> {
       final page = document.pages[currentPageIndex];
       final pageSize = page.size;
 
-      // The Stack is sized to _currentPageW × _currentPageH in logical units,
-      // but InteractiveViewer (constrained:true) scales it to fit the viewport.
-      // Stamp coordinates are in the Stack's actual rendered size, not PDF points.
-      // Use the render box to get the actual displayed size.
+      // With constrained:false, the Stack renders at its natural PDF-point size.
+      // Stamp coordinates are in that space. Use a single uniform scale for both
+      // position and size to preserve aspect ratio.
       final stackContext = _previewStackKey.currentContext;
       final renderBox = stackContext?.findRenderObject() as RenderBox?;
       final actualSize = renderBox?.size;
       final actualW = actualSize?.width ?? _currentPageW;
       final actualH = actualSize?.height ?? _currentPageH;
 
-      final scaleX = (actualW > 0) ? pageSize.width / actualW : 1.0;
-      final scaleY = (actualH > 0) ? pageSize.height / actualH : 1.0;
+      final scale = (actualW > 0) ? pageSize.width / actualW : 1.0;
 
       // Debug: show coordinate mapping info
       if (_placedStamps.isNotEmpty) {
         final s = _placedStamps.first;
         _showSnack('actual:${actualW.toStringAsFixed(0)}×${actualH.toStringAsFixed(0)} '
             'sf:${pageSize.width.toStringAsFixed(0)}×${pageSize.height.toStringAsFixed(0)} '
-            'scale:${scaleX.toStringAsFixed(2)}×${scaleY.toStringAsFixed(2)} '
+            'scale:${scale.toStringAsFixed(2)} '
             'stamp@(${s.x.toStringAsFixed(0)},${s.y.toStringAsFixed(0)})');
       }
 
       for (final stamp in _placedStamps) {
-        final pdfX = stamp.x * scaleX;
-        final pdfY = stamp.y * scaleY;
-        // Uniform scale for size to preserve aspect ratio.
-        final uniformScale = scaleX < scaleY ? scaleX : scaleY;
-        final pdfW = stamp.w * uniformScale;
-        final pdfH = stamp.h * uniformScale;
+        final pdfX = stamp.x * scale;
+        final pdfY = stamp.y * scale;
+        final pdfW = stamp.w * scale;
+        final pdfH = stamp.h * scale;
 
         // Use high-res re-render for PDF-sourced stamps.
         Uint8List stampPng = stamp.png;
@@ -1640,10 +1636,11 @@ class _StampHomePageState extends State<StampHomePage> {
             onTapDown: _isPasteMode ? _handlePreviewTapDown : null,
             child: InteractiveViewer(
               transformationController: _viewerController,
-              minScale: 0.5,
+              constrained: false,
+              minScale: 0.1,
               maxScale: 5.0,
-              boundaryMargin: const EdgeInsets.all(200),
-              child: Center(child: pageContent),
+              boundaryMargin: const EdgeInsets.all(double.infinity),
+              child: pageContent,
             ),
           ),
         ),
