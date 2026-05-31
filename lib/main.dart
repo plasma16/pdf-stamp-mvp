@@ -986,14 +986,9 @@ class _StampHomePageState extends State<StampHomePage> {
 
   void _handlePreviewTapDown(TapDownDetails details) {
     if (!_isPasteMode || _pendingStampPng == null) return;
-
-    // Convert screen position to page-coordinate space.
-    final stackContext = _previewStackKey.currentContext;
-    final renderBox = stackContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-
-    final localPos = renderBox.globalToLocal(details.globalPosition);
-    _addStampAt(localPos);
+    // GestureDetector is inside InteractiveViewer, wrapping pageContent,
+    // so localPosition is already in the Stack's coordinate space.
+    _addStampAt(details.localPosition);
   }
 
   void _addStampAt(Offset pos) {
@@ -1631,17 +1626,17 @@ class _StampHomePageState extends State<StampHomePage> {
     return Column(
       children: [
         Expanded(
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTapDown: _isPasteMode ? _handlePreviewTapDown : null,
-            child: InteractiveViewer(
+          child: InteractiveViewer(
               transformationController: _viewerController,
               constrained: false,
               minScale: 0.1,
               maxScale: 5.0,
               boundaryMargin: const EdgeInsets.all(double.infinity),
-              child: pageContent,
-            ),
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTapDown: _isPasteMode ? _handlePreviewTapDown : null,
+                child: pageContent,
+              ),
           ),
         ),
         // Page navigation bar
