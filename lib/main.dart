@@ -883,20 +883,26 @@ class _StampHomePageState extends State<StampHomePage> {
       final page = document.pages[currentPageIndex];
       final pageSize = page.size;
 
-      // The preview Stack is sized to _currentPageW × _currentPageH (from pdfx).
-      // Syncfusion's pageSize may differ (e.g. pdfx on Android may scale by DPI).
-      // Compute the mapping factor from preview coords to PDF points.
-      final scaleX = (_currentPageW > 0) ? pageSize.width / _currentPageW : 1.0;
-      final scaleY = (_currentPageH > 0) ? pageSize.height / _currentPageH : 1.0;
+      // The Stack is sized to _currentPageW × _currentPageH in logical units,
+      // but InteractiveViewer (constrained:true) scales it to fit the viewport.
+      // Stamp coordinates are in the Stack's actual rendered size, not PDF points.
+      // Use the render box to get the actual displayed size.
+      final stackContext = _previewStackKey.currentContext;
+      final renderBox = stackContext?.findRenderObject() as RenderBox?;
+      final actualSize = renderBox?.size;
+      final actualW = actualSize?.width ?? _currentPageW;
+      final actualH = actualSize?.height ?? _currentPageH;
+
+      final scaleX = (actualW > 0) ? pageSize.width / actualW : 1.0;
+      final scaleY = (actualH > 0) ? pageSize.height / actualH : 1.0;
 
       // Debug: show coordinate mapping info
       if (_placedStamps.isNotEmpty) {
         final s = _placedStamps.first;
-        _showSnack('pdfx:${_currentPageW.toStringAsFixed(0)}×${_currentPageH.toStringAsFixed(0)} '
+        _showSnack('actual:${actualW.toStringAsFixed(0)}×${actualH.toStringAsFixed(0)} '
             'sf:${pageSize.width.toStringAsFixed(0)}×${pageSize.height.toStringAsFixed(0)} '
             'scale:${scaleX.toStringAsFixed(2)}×${scaleY.toStringAsFixed(2)} '
-            'stamp@(${s.x.toStringAsFixed(0)},${s.y.toStringAsFixed(0)}) '
-            'sz:${s.w.toStringAsFixed(0)}×${s.h.toStringAsFixed(0)}');
+            'stamp@(${s.x.toStringAsFixed(0)},${s.y.toStringAsFixed(0)})');
       }
 
       for (final stamp in _placedStamps) {

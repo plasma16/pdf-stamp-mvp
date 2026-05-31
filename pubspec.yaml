@@ -1,7 +1,7 @@
 name: pdf_stamp_mvp
 description: Offline PDF stamp MVP with automatic white background removal.
 publish_to: 'none'
-version: 0.3.5+7
+version: 0.3.6+8
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
