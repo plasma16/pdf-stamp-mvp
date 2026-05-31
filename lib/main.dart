@@ -821,8 +821,6 @@ class _StampHomePageState extends State<StampHomePage> {
       final doc2 = sfpdf.PdfDocument(inputBytes: await file2.readAsBytes());
       final outDoc = sfpdf.PdfDocument();
       try {
-        bool isFirstPage = true;
-
         void copyPages(sfpdf.PdfDocument source) {
           for (int i = 0; i < source.pages.count; i++) {
             final srcPage = source.pages[i];
@@ -832,15 +830,7 @@ class _StampHomePageState extends State<StampHomePage> {
             outDoc.pageSettings.size = pageSize;
             outDoc.pageSettings.margins.all = 0;
 
-            sfpdf.PdfPage dstPage;
-            if (isFirstPage) {
-              // Reuse the default blank page created by PdfDocument().
-              dstPage = outDoc.pages[0];
-              isFirstPage = false;
-            } else {
-              dstPage = outDoc.pages.add();
-            }
-
+            final dstPage = outDoc.pages.add();
             dstPage.graphics.drawPdfTemplate(template, Offset.zero, pageSize);
           }
         }
