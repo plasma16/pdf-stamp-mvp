@@ -908,8 +908,10 @@ class _StampHomePageState extends State<StampHomePage> {
       for (final stamp in _placedStamps) {
         final pdfX = stamp.x * scaleX;
         final pdfY = stamp.y * scaleY;
-        final pdfW = stamp.w * scaleX;
-        final pdfH = stamp.h * scaleY;
+        // Uniform scale for size to preserve aspect ratio.
+        final uniformScale = scaleX < scaleY ? scaleX : scaleY;
+        final pdfW = stamp.w * uniformScale;
+        final pdfH = stamp.h * uniformScale;
 
         // Use high-res re-render for PDF-sourced stamps.
         Uint8List stampPng = stamp.png;
