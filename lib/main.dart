@@ -997,10 +997,14 @@ class _StampHomePageState extends State<StampHomePage> {
           _pendingStampPng == null ? null : _decodeImageDimensions(_pendingStampPng!);
       final baseWidth = pendingDimensions?.width ?? _pendingStampBaseW;
       final baseHeight = pendingDimensions?.height ?? _pendingStampBaseH;
+      // Use actual stamp display size for centering (not _pendingStampW/H which
+      // may use different base dimensions).
+      final displayW = baseWidth * _pendingStampScale;
+      final displayH = baseHeight * _pendingStampScale;
       final stamp = _PlacedStamp(
         png: _pendingStampPng!,
-        x: (pos.dx - (_pendingStampW / 2)).clamp(0.0, 10000.0),
-        y: (pos.dy - (_pendingStampH / 2)).clamp(0.0, 10000.0),
+        x: (pos.dx - (displayW / 2)).clamp(0.0, 10000.0),
+        y: (pos.dy - (displayH / 2)).clamp(0.0, 10000.0),
         baseWidth: baseWidth,
         baseHeight: baseHeight,
         scale: _pendingStampScale,
