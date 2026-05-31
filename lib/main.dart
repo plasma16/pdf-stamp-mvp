@@ -894,21 +894,37 @@ class _StampHomePageState extends State<StampHomePage> {
 
       final scale = (actualW > 0) ? pageSize.width / actualW : 1.0;
 
-      // Debug: show coordinate mapping info
-      if (_placedStamps.isNotEmpty) {
-        final s = _placedStamps.first;
-        final dbgPdfX = s.x * scale;
-        final dbgPdfY = s.y * scale;
-        final dbgPdfW = s.w * scale;
-        final dbgPdfH = s.h * scale;
-        _showSnack('stk:${actualW.toStringAsFixed(0)}×${actualH.toStringAsFixed(0)} '
-            'pg:${pageSize.width.toStringAsFixed(0)}×${pageSize.height.toStringAsFixed(0)} '
-            'sc:${scale.toStringAsFixed(2)} '
-            'xy(${s.x.toStringAsFixed(0)},${s.y.toStringAsFixed(0)}) '
-            'wh(${s.w.toStringAsFixed(0)},${s.h.toStringAsFixed(0)}) '
-            '→pdf(${dbgPdfX.toStringAsFixed(0)},${dbgPdfY.toStringAsFixed(0)} '
-            '${dbgPdfW.toStringAsFixed(0)}×${dbgPdfH.toStringAsFixed(0)})');
+      // Debug: write coordinate mapping to text file next to PDF
+      final debugLines = <String>[
+        'PDF Stamp Export Debug — ${DateTime.now().toIso8601String()}',
+        'stack_rendered: ${actualW.toStringAsFixed(1)} × ${actualH.toStringAsFixed(1)}',
+        'pdf_page_size: ${pageSize.width.toStringAsFixed(1)} × ${pageSize.height.toStringAsFixed(1)}',
+        'scale: ${scale.toStringAsFixed(4)}',
+        '',
+      ];
+      for (var i = 0; i < _placedStamps.length; i++) {
+        final s = _placedStamps[i];
+        final pX = s.x * scale;
+        final pY = s.y * scale;
+        final pW = s.w * scale;
+        final pH = s.h * scale;
+        debugLines.addAll([
+          'stamp[$i]',
+          '  preview_xy: (${s.x.toStringAsFixed(1)}, ${s.y.toStringAsFixed(1)})',
+          '  preview_wh: ${s.w.toStringAsFixed(1)} × ${s.h.toStringAsFixed(1)}',
+          '  preview_center: (${(s.x + s.w / 2).toStringAsFixed(1)}, ${(s.y + s.h / 2).toStringAsFixed(1)})',
+          '  baseWH: ${s.baseWidth.toStringAsFixed(1)} × ${s.baseHeight.toStringAsFixed(1)}',
+          '  stamp_scale: ${s.scale.toStringAsFixed(4)}',
+          '  rotation: ${s.rotationDeg.toStringAsFixed(1)}°',
+          '  export_xy: (${pX.toStringAsFixed(1)}, ${pY.toStringAsFixed(1)})',
+          '  export_wh: ${pW.toStringAsFixed(1)} × ${pH.toStringAsFixed(1)}',
+          '  export_center: (${(pX + pW / 2).toStringAsFixed(1)}, ${(pY + pH / 2).toStringAsFixed(1)})',
+          '',
+        ]);
       }
+      final debugFile = File(p.join(p.dirname(_pdfFile!.path),
+          '${p.basenameWithoutExtension(_pdfFile!.path)}_debug.txt'));
+      await debugFile.writeAsString(debugLines.join('\n'));
 
       for (final stamp in _placedStamps) {
         final pdfX = stamp.x * scale;
@@ -1022,10 +1038,23 @@ class _StampHomePageState extends State<StampHomePage> {
       _isMovingStamp = false;
     });
     final s = _placedStamps.last;
-    _showSnack('tap(${pos.dx.toStringAsFixed(0)},${pos.dy.toStringAsFixed(0)}) '
-        '→top-left(${s.x.toStringAsFixed(0)},${s.y.toStringAsFixed(0)}) '
-        'sz(${s.w.toStringAsFixed(0)}×${s.h.toStringAsFixed(0)}) '
-        'center(${(s.x + s.w / 2).toStringAsFixed(0)},${(s.y + s.h / 2).toStringAsFixed(0)})');
+    // Debug: write placement info to text file next to PDF
+    if (_pdfFile != null) {
+      final debugFile = File(p.join(p.dirname(_pdfFile!.path),
+          '${p.basenameWithoutExtension(_pdfFile!.path)}_place_debug.txt'));
+      final lines = [
+        'Stamp Placement Debug — ${DateTime.now().toIso8601String()}',
+        'tap: (${pos.dx.toStringAsFixed(1)}, ${pos.dy.toStringAsFixed(1)})',
+        'top_left: (${s.x.toStringAsFixed(1)}, ${s.y.toStringAsFixed(1)})',
+        'size: ${s.w.toStringAsFixed(1)} × ${s.h.toStringAsFixed(1)}',
+        'center: (${(s.x + s.w / 2).toStringAsFixed(1)}, ${(s.y + s.h / 2).toStringAsFixed(1)})',
+        'base: ${s.baseWidth.toStringAsFixed(1)} × ${s.baseHeight.toStringAsFixed(1)}',
+        'scale: ${s.scale.toStringAsFixed(4)}',
+        'page: ${_currentPageW.toStringAsFixed(1)} × ${_currentPageH.toStringAsFixed(1)}',
+      ];
+      debugFile.writeAsStringSync(lines.join('\n'));
+    }
+    _showSnack('Stamp placed');
   }
 
   void _selectStampByIndex(int index) {
