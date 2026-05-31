@@ -897,10 +897,17 @@ class _StampHomePageState extends State<StampHomePage> {
       // Debug: show coordinate mapping info
       if (_placedStamps.isNotEmpty) {
         final s = _placedStamps.first;
-        _showSnack('actual:${actualW.toStringAsFixed(0)}×${actualH.toStringAsFixed(0)} '
-            'sf:${pageSize.width.toStringAsFixed(0)}×${pageSize.height.toStringAsFixed(0)} '
-            'scale:${scale.toStringAsFixed(2)} '
-            'stamp@(${s.x.toStringAsFixed(0)},${s.y.toStringAsFixed(0)})');
+        final dbgPdfX = s.x * scale;
+        final dbgPdfY = s.y * scale;
+        final dbgPdfW = s.w * scale;
+        final dbgPdfH = s.h * scale;
+        _showSnack('stk:${actualW.toStringAsFixed(0)}×${actualH.toStringAsFixed(0)} '
+            'pg:${pageSize.width.toStringAsFixed(0)}×${pageSize.height.toStringAsFixed(0)} '
+            'sc:${scale.toStringAsFixed(2)} '
+            'xy(${s.x.toStringAsFixed(0)},${s.y.toStringAsFixed(0)}) '
+            'wh(${s.w.toStringAsFixed(0)},${s.h.toStringAsFixed(0)}) '
+            '→pdf(${dbgPdfX.toStringAsFixed(0)},${dbgPdfY.toStringAsFixed(0)} '
+            '${dbgPdfW.toStringAsFixed(0)}×${dbgPdfH.toStringAsFixed(0)})');
       }
 
       for (final stamp in _placedStamps) {
@@ -1014,7 +1021,11 @@ class _StampHomePageState extends State<StampHomePage> {
       _selectedStampIndex = _placedStamps.length - 1;
       _isMovingStamp = false;
     });
-    _showSnack('Stamp added');
+    final s = _placedStamps.last;
+    _showSnack('tap(${pos.dx.toStringAsFixed(0)},${pos.dy.toStringAsFixed(0)}) '
+        '→top-left(${s.x.toStringAsFixed(0)},${s.y.toStringAsFixed(0)}) '
+        'sz(${s.w.toStringAsFixed(0)}×${s.h.toStringAsFixed(0)}) '
+        'center(${(s.x + s.w / 2).toStringAsFixed(0)},${(s.y + s.h / 2).toStringAsFixed(0)})');
   }
 
   void _selectStampByIndex(int index) {
