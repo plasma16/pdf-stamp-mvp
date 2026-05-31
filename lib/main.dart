@@ -922,7 +922,8 @@ class _StampHomePageState extends State<StampHomePage> {
           '',
         ]);
       }
-      final debugFile = File(p.join(p.dirname(_pdfFile!.path),
+      final debugDir = _preferredOutputDir(_pdfFile!);
+      final debugFile = File(p.join(debugDir.path,
           '${p.basenameWithoutExtension(_pdfFile!.path)}_debug.txt'));
       await debugFile.writeAsString(debugLines.join('\n'));
 
@@ -1040,7 +1041,8 @@ class _StampHomePageState extends State<StampHomePage> {
     final s = _placedStamps.last;
     // Debug: write placement info to text file next to PDF
     if (_pdfFile != null) {
-      final debugFile = File(p.join(p.dirname(_pdfFile!.path),
+      final placeDebugDir = _preferredOutputDir(_pdfFile!);
+      final debugFile = File(p.join(placeDebugDir.path,
           '${p.basenameWithoutExtension(_pdfFile!.path)}_place_debug.txt'));
       final lines = [
         'Stamp Placement Debug — ${DateTime.now().toIso8601String()}',
