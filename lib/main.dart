@@ -889,6 +889,16 @@ class _StampHomePageState extends State<StampHomePage> {
       final scaleX = (_currentPageW > 0) ? pageSize.width / _currentPageW : 1.0;
       final scaleY = (_currentPageH > 0) ? pageSize.height / _currentPageH : 1.0;
 
+      // Debug: show coordinate mapping info
+      if (_placedStamps.isNotEmpty) {
+        final s = _placedStamps.first;
+        _showSnack('pdfx:${_currentPageW.toStringAsFixed(0)}×${_currentPageH.toStringAsFixed(0)} '
+            'sf:${pageSize.width.toStringAsFixed(0)}×${pageSize.height.toStringAsFixed(0)} '
+            'scale:${scaleX.toStringAsFixed(2)}×${scaleY.toStringAsFixed(2)} '
+            'stamp@(${s.x.toStringAsFixed(0)},${s.y.toStringAsFixed(0)}) '
+            'sz:${s.w.toStringAsFixed(0)}×${s.h.toStringAsFixed(0)}');
+      }
+
       for (final stamp in _placedStamps) {
         final pdfX = stamp.x * scaleX;
         final pdfY = stamp.y * scaleY;
