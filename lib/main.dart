@@ -881,14 +881,19 @@ class _StampHomePageState extends State<StampHomePage> {
       final currentPageIndex = (_pageNumber - 1).clamp(0, totalPages - 1);
 
       final page = document.pages[currentPageIndex];
+      final pageSize = page.size;
 
-      // Stamps are already in page-point coordinates (the preview Stack
-      // is sized to match PDF page dimensions), so mapping is 1:1.
+      // The preview Stack is sized to _currentPageW × _currentPageH (from pdfx).
+      // Syncfusion's pageSize may differ (e.g. pdfx on Android may scale by DPI).
+      // Compute the mapping factor from preview coords to PDF points.
+      final scaleX = (_currentPageW > 0) ? pageSize.width / _currentPageW : 1.0;
+      final scaleY = (_currentPageH > 0) ? pageSize.height / _currentPageH : 1.0;
+
       for (final stamp in _placedStamps) {
-        final pdfX = stamp.x;
-        final pdfY = stamp.y;
-        final pdfW = stamp.w;
-        final pdfH = stamp.h;
+        final pdfX = stamp.x * scaleX;
+        final pdfY = stamp.y * scaleY;
+        final pdfW = stamp.w * scaleX;
+        final pdfH = stamp.h * scaleY;
 
         // Use high-res re-render for PDF-sourced stamps.
         Uint8List stampPng = stamp.png;
